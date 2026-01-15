@@ -1,0 +1,32 @@
+{
+  "name": "prez-ai-next",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "agent": "node deepseek-agent-server.js",
+    "agent:dev": "node --watch deepseek-agent-server.js"
+  },
+  "dependencies": {
+    "@langchain/core": "^1.1.13",
+    "@langchain/deepseek": "^1.0.5",
+    "dotenv": "^17.2.3",
+    "lucide-react": "^0.562.0",
+    "next": "16.1.1",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "zod": "^4.3.5"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "babel-plugin-react-compiler": "1.0.0",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}
