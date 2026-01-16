@@ -19,22 +19,23 @@ if (!config.deepseekApiKey) {
   process.exit(1);
 }
 
-// Build configuration for DeepSeek client
+// Build configuration for DeepSeek client - Using reasoning model (R1)
 const deepSeekConfig = {
   apiKey: config.deepseekApiKey,
-  model: "deepseek-chat",
+  model: "deepseek-reasoner", // Using reasoning model for better processing
   configuration: {
     baseURL: config.deepseekBaseUrl,
   },
   temperature: 0.7,
-  maxTokens: 2000,
+  maxTokens: 4000, // Increased for reasoning
+  reasoningEffort: "high", // Enable reasoning effort
 };
 
 // Initialize DeepSeek LLM using ChatDeepSeek (DeepSeek is OpenAI-compatible)
-console.log("Initializing DeepSeek LLM with API key...");
+console.log("Initializing DeepSeek Reasoning LLM with API key...");
 const llm = new ChatDeepSeek(deepSeekConfig);
 if (!llm) {
-  console.error("❌ Failed to initialize DeepSeek LLM");
+  console.error("❌ Failed to initialize DeepSeek Reasoning LLM");
   process.exit(1);
 }
 
@@ -274,96 +275,115 @@ Provide an updated plan that incorporates the requested changes while maintainin
 // Combine all tools
 const allTools = [...thinkingCriticTools, ...planningTools];
 
-// Simple agent implementation (without complex LangChain agent framework)
-async function runAgent(input: string){
-  console.log("\n🤖 Agent analyzing request...");
+// Enhanced agent implementation with continuous processing and concatenation
+async function runAgent(input: string): Promise<string> {
+  console.log("\n🤖 Agent analyzing request with reasoning...");
+  
+  // Track all responses for concatenation
+  const allResponses: string[] = [];
+  let currentInput = input;
+  let iteration = 0;
+  const maxIterations = 3; // Limit to prevent infinite loops
+  
+  // System message for reasoning agent
+  const systemMessage = new SystemMessage(`You are ${config.agentName}, an advanced reasoning AI assistant with thinking critic and planning capabilities.
 
-  // Check which tool to use based on input
-  const inputLower = input.toLowerCase();
+Your capabilities:
+1. CRITICAL THINKING: Analyze thought processes for logical flaws, biases, and improvements
+2. PLANNING: Create detailed plans with milestones, dependencies, and risk assessment
+3. ADVICE: Provide step-by-step guidance for complex problems
+4. REASONING: Break down complex problems into manageable steps
+5. SYNTHESIS: Combine multiple perspectives into coherent solutions
 
-  if (
-    inputLower.includes("critique") ||
-    inputLower.includes("critic") ||
-    inputLower.includes("thinking") ||
-    inputLower.includes("analyze")
-  ) {
-    // Extract thought process from input
-    const thoughtProcess =
-      input
-        .replace(/.*(thinking|thought|analyze|criqtique|critic)/i, "")
-        .trim() || input;
+Reasoning Process:
+1. First, analyze the user's request to understand the core need
+2. Break down complex requests into logical components
+3. Process each component systematically
+4. Synthesize insights from all components
+5. Provide comprehensive, actionable responses
 
-    console.log("Using thinking critic tool...");
-    const tool = thinkingCriticTools[0];
-    const result = await tool.func({
-      thought_process: thoughtProcess,
-      problem: "",
-    });
-    return JSON.parse(result).critique;
-  } else if (
-    inputLower.includes("plan") ||
-    inputLower.includes("create") ||
-    inputLower.includes("schedule")
-  ) {
-    // Extract objective from input
-    const objective =
-      input.replace(/.*(plan|create|schedule|objective)/i, "").trim() || input;
+Always think step-by-step and provide well-reasoned, comprehensive responses.`);
 
-    console.log("Using planning tool...");
-    const tool = planningTools[0];
-    // Use type assertion to bypass strict type checking
-    const result = await (tool.func as any)({
-      objective,
-      constraints: "",
-      timeline: "",
-    });
-    const parsed = JSON.parse(result);
-
-    // Auto-request approval for demonstration
-    console.log("\nAuto-requesting approval for demonstration...");
-    const approvalTool = planningTools[1];
-    const approvalResult = await (approvalTool.func as any)({
-      changes_requested: "",
-    });
-
-    return `${parsed.message}\n\n${
-      JSON.parse(approvalResult).message
-    }\n\nPlan Details:\n${parsed.plan.plan_details}`;
-  } else if (
-    inputLower.includes("advice") ||
-    inputLower.includes("steps") ||
-    inputLower.includes("help")
-  ) {
-    // Extract problem from input
-    const problem = input.replace(/.*(advice|steps|help)/i, "").trim() || input;
-
-    console.log("Using advice steps tool...");
-    const tool = thinkingCriticTools[1];
-    // Use type assertion to bypass strict type checking
-    const result = await (tool.func as any)({ problem });
-    return JSON.parse(result).advice_steps;
-  } else if (inputLower.includes("status") || inputLower.includes("check")) {
-    console.log("Checking plan status...");
-    const tool = planningTools[2];
-    const result = await (tool.func as any)({});
-    const parsed = JSON.parse(result);
-
-    if (parsed.current_plan) {
-      return `Current Plan Status: ${parsed.approval_status}\nObjective: ${parsed.current_plan.objective}\nLast Updated: ${parsed.last_updated}`;
-    } else {
-      return 'No active plan. Create a plan first using "create a plan for..."';
+  while (iteration < maxIterations) {
+    iteration++;
+    console.log(`\n🔍 Reasoning iteration ${iteration}/${maxIterations}`);
+    
+    try {
+      // Create messages for this iteration
+      const messages: (SystemMessage | HumanMessage)[] = [systemMessage];
+      
+      // Add previous responses as context if available
+      if (allResponses.length > 0) {
+        const contextSummary = allResponses.slice(-2).join("\n\n");
+        messages.push(
+          new HumanMessage(`Previous reasoning context:\n${contextSummary}\n\nContinue processing: ${currentInput}`)
+        );
+      } else {
+        messages.push(new HumanMessage(currentInput));
+      }
+      
+      // Get response from reasoning model
+      const response = await llm.invoke(messages);
+      const responseContent = typeof response.content === 'string' 
+        ? response.content 
+        : Array.isArray(response.content)
+        ? response.content.map(c => typeof c === 'string' ? c : JSON.stringify(c)).join(' ')
+        : JSON.stringify(response.content);
+      
+      // Store response
+      allResponses.push(responseContent);
+      console.log(`📝 Response ${iteration} length: ${responseContent.length} chars`);
+      
+      // Check if we should continue processing
+      // Look for indicators that more processing is needed
+      const needsMoreProcessing = 
+        responseContent.includes("Let me think") ||
+        responseContent.includes("I need to consider") ||
+        responseContent.includes("Further analysis") ||
+        responseContent.includes("Additionally") ||
+        responseContent.length > 1500; // Long responses might need breaking down
+      
+      if (!needsMoreProcessing || iteration >= maxIterations) {
+        // Concatenate all responses
+        const finalResponse = allResponses.join("\n\n---\n\n");
+        console.log(`✅ Final response concatenated from ${allResponses.length} reasoning steps`);
+        console.log(`📊 Total response length: ${finalResponse.length} chars`);
+        return finalResponse;
+      }
+      
+      // Prepare for next iteration
+      currentInput = `Based on the previous analysis, provide additional insights or address any remaining aspects: ${responseContent.substring(responseContent.length - 500)}`;
+      
+    } catch (error) {
+      console.error(`❌ Error in reasoning iteration ${iteration}:`, error);
+      
+      // If we have some responses, return what we have
+      if (allResponses.length > 0) {
+        const partialResponse = allResponses.join("\n\n---\n\n");
+        console.log(`⚠️ Returning partial response after error (${allResponses.length} steps)`);
+        return partialResponse;
+      }
+      
+      // Fallback to simple response
+      console.log("⚠️ Falling back to simple response");
+      const fallbackResponse = await llm.invoke([
+        systemMessage,
+        new HumanMessage(input),
+      ]);
+      const fallbackContent = typeof fallbackResponse.content === 'string'
+        ? fallbackResponse.content
+        : Array.isArray(fallbackResponse.content)
+        ? fallbackResponse.content.map(c => typeof c === 'string' ? c : JSON.stringify(c)).join(' ')
+        : JSON.stringify(fallbackResponse.content);
+      return fallbackContent;
     }
-  } else {
-    // General response using LLM directly
-    const response = await llm.invoke([
-      new SystemMessage(`You are ${config.agentName}, an AI assistant with thinking critic and planning capabilities. 
-      You can help with: critiquing thinking processes, creating plans, providing advice steps, and checking plan status.
-      If the user needs specific help, suggest using one of your specialized tools.`),
-      new HumanMessage(input),
-    ]);
-
-    return response.content;
   }
+  
+  // Concatenate all responses if we reached max iterations
+  const finalResponse = allResponses.join("\n\n---\n\n");
+  console.log(`🔄 Reached max iterations (${maxIterations}), returning concatenated response`);
+  console.log(`📊 Total response length: ${finalResponse.length} chars`);
+  return finalResponse;
 }
 
-export { runAgent, config, thinkingCriticTools, planningTools };
+export { runAgent };

@@ -8,22 +8,27 @@ async function generatePresentationContent(
   topic: string,
   audience: string,
   duration: string,
-  keyPoints: string[]
+  keyPoints: string[],
+  stepType: string = "outline",
+  previousContent?: string
 ): Promise<string> {
   const filteredKeyPoints = keyPoints.filter((kp) => kp.trim() !== "");
 
-  // Create a prompt that will use the general LLM response (not specific tools)
-  // Avoid keywords that trigger tool routing: "plan", "create", "schedule", "critique", "thinking", "analyze", "advice", "steps", "help"
-  const prompt = `You are a presentation expert. Develop a comprehensive presentation outline with these details:
+  let prompt = "";
+  
+  switch (stepType) {
+    case "thesis":
+    case "outline":
+      prompt = `You are a presentation expert. Develop a comprehensive presentation outline with these details:
 
 TOPIC: ${topic}
 AUDIENCE: ${audience || "General audience"}
 DURATION: ${duration} minutes
 KEY POINTS: ${
-    filteredKeyPoints.length > 0
-      ? filteredKeyPoints.join(", ")
-      : "Not specified"
-  }
+        filteredKeyPoints.length > 0
+          ? filteredKeyPoints.join(", ")
+          : "Not specified"
+      }
 
 Generate a detailed, practical presentation outline that includes:
 1. Title and engaging introduction
@@ -36,71 +41,77 @@ Generate a detailed, practical presentation outline that includes:
 8. Clear call to action
 
 Format in markdown with clear headings and bullet points.`;
+      break;
+
+    case "speech":
+      prompt = `You are a professional speech writer. Create a spoken presentation script based on this outline:
+
+PRESENTATION TOPIC: ${topic}
+TARGET AUDIENCE: ${audience || "General audience"}
+PRESENTATION DURATION: ${duration} minutes
+PRESENTATION OUTLINE:
+${previousContent || "No outline provided"}
+
+Create a natural, engaging spoken presentation script that:
+1. Has a conversational tone suitable for ${audience || "general audience"}
+2. Includes speaker notes and delivery suggestions
+3. Incorporates rhetorical devices (questions, pauses, emphasis)
+4. Provides timing guidance for ${duration} minute presentation
+5. Includes audience interaction points
+6. Has clear transitions between sections
+7. Ends with a memorable conclusion
+
+Format as a speaker's script with clear indications for pacing, emphasis, and audience engagement.`;
+      break;
+
+    case "slides":
+      prompt = `You are a presentation design expert. Create slide content based on this speech script:
+
+PRESENTATION TOPIC: ${topic}
+TARGET AUDIENCE: ${audience || "General audience"}
+SPEECH SCRIPT:
+${previousContent || "No speech script provided"}
+
+Create comprehensive slide content that:
+1. Breaks the speech into logical slides (approximately 1 slide per minute)
+2. Provides concise bullet points for each slide (not full sentences)
+3. Suggests visual elements (charts, images, diagrams) where appropriate
+4. Includes slide titles that summarize key messages
+5. Provides speaker notes for each slide
+6. Follows good presentation design principles (contrast, repetition, alignment, proximity)
+7. Creates a visual story flow
+
+Format as markdown with clear slide separators and visual suggestions.`;
+      break;
+
+    default:
+      prompt = `You are a presentation expert. Develop content for this presentation:
+
+TOPIC: ${topic}
+AUDIENCE: ${audience || "General audience"}
+DURATION: ${duration} minutes
+KEY POINTS: ${
+        filteredKeyPoints.length > 0
+          ? filteredKeyPoints.join(", ")
+          : "Not specified"
+      }
+
+Generate comprehensive presentation content in markdown format.`;
+  }
 
   try {
     const content = await runAgent(prompt);
     return content;
   } catch (error) {
     console.error("Error generating content with DeepSeek agent:", error);
-
-    // Fallback to mock content if agent fails
-    const mockContent = `
-# Presentation Plan: ${topic}
-
-## Target Audience
-${audience || "General audience"}
-
-## Duration
-${duration} minutes
-
-## Key Points
-${
-  filteredKeyPoints.length > 0
-    ? filteredKeyPoints.map((kp, i) => `${i + 1}. ${kp}`).join("\n")
-    : "1. Define your main message\n2. Support with evidence\n3. Call to action"
-}
-
-## Structure
-1. **Introduction (${Math.floor(parseInt(duration) * 0.1)} min)**
-   - Hook: Start with a compelling question or statistic
-   - Agenda: Outline what you'll cover
-   - Relevance: Explain why this matters to ${audience || "your audience"}
-
-2. **Main Content (${Math.floor(parseInt(duration) * 0.7)} min)**
-   ${
-     filteredKeyPoints
-       .map((kp, i) => `   - Point ${i + 1}: ${kp}`)
-       .join("\n   ") ||
-     "   - Present your main arguments\n   - Support with data and examples\n   - Address potential counter-arguments"
-   }
-
-3. **Conclusion (${Math.floor(parseInt(duration) * 0.2)} min)**
-   - Summary: Recap key points
-   - Call to Action: What should ${audience || "the audience"} do next?
-   - Q&A: Prepare for questions
-
-## Design Tips
-- Use consistent color scheme and fonts
-- Limit text to 6 lines per slide
-- Include relevant visuals (charts, images, diagrams)
-- Practice timing: ${Math.floor(parseInt(duration) / 3)} minutes per section
-
-## Delivery Tips
-- Speak clearly and vary your tone
-- Make eye contact with different audience members
-- Use gestures to emphasize points
-- Pause after important statements
-- Prepare answers to likely questions
-`;
-
-    return mockContent;
+    throw new Error("Failed to generate presentation content");
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { topic, audience, duration, keyPoints } = body;
+    const { topic, audience, duration, keyPoints, stepType, previousContent } = body;
 
     if (!topic) {
       return NextResponse.json(
@@ -124,9 +135,11 @@ export async function POST(request: NextRequest) {
 
     const content = await generatePresentationContent(
       topic,
-      audience,
+      audience || "",
       duration || "10",
-      keyPoints || []
+      keyPoints || [],
+      stepType || "outline",
+      previousContent
     );
 
     // Calculate processing time and token usage

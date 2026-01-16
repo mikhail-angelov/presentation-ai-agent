@@ -131,6 +131,7 @@ export default function Home() {
           audience,
           duration,
           keyPoints: keyPoints.filter((kp) => kp.trim() !== ""),
+          stepType: "outline",
         }),
       });
 
@@ -259,8 +260,6 @@ export default function Home() {
     const requestId = Math.random().toString(36).substr(2, 9);
 
     try {
-      // In a real implementation, this would call a different API endpoint
-      // For now, we'll simulate with the same endpoint but different prompt
       const response = await fetch("/api/generate-content", {
         method: "POST",
         headers: {
@@ -268,10 +267,12 @@ export default function Home() {
         },
         credentials: "include",
         body: JSON.stringify({
-          topic: `Speech for: ${topic}`,
+          topic,
           audience,
           duration,
           keyPoints: ["Convert outline to spoken speech", "Natural speaking style", "Engaging delivery"],
+          stepType: "speech",
+          previousContent: outline,
         }),
       });
 
@@ -280,6 +281,7 @@ export default function Home() {
 
       if (data.success) {
         const content = data.content;
+        const metadata = data.metadata;
 
         // Simulate streaming effect
         let displayedContent = "";
@@ -297,9 +299,9 @@ export default function Home() {
         const newRequest: LLMRequest = {
           id: requestId,
           timestamp: new Date(),
-          endpoint: "/api/generate-speech",
+          endpoint: "/api/generate-content",
           status: "success",
-          tokensUsed: data.metadata?.tokensUsed || 500,
+          tokensUsed: metadata.tokensUsed,
           duration: durationMs,
         };
         addLLMRequest(newRequest);
@@ -313,8 +315,9 @@ export default function Home() {
           },
           {
             contentLength: content.length,
+            tokensUsed: metadata.tokensUsed,
           },
-          data.metadata?.tokensUsed || 500,
+          metadata.tokensUsed,
           durationMs
         );
 
@@ -339,14 +342,13 @@ export default function Home() {
     setIsGenerating(true);
     setStreamingContent("");
 
-    const { topic, audience } = stepContents.setup;
+    const { topic, audience, duration } = stepContents.setup;
     const speech = stepContents.speech;
 
     const startTime = Date.now();
     const requestId = Math.random().toString(36).substr(2, 9);
 
     try {
-      // In a real implementation, this would call a different API endpoint
       const response = await fetch("/api/generate-content", {
         method: "POST",
         headers: {
@@ -354,10 +356,12 @@ export default function Home() {
         },
         credentials: "include",
         body: JSON.stringify({
-          topic: `Slides for: ${topic}`,
+          topic,
           audience,
-          duration: "30", // Default for slides
+          duration,
           keyPoints: ["Create slide content", "Visual suggestions", "Slide structure"],
+          stepType: "slides",
+          previousContent: speech,
         }),
       });
 
@@ -366,6 +370,7 @@ export default function Home() {
 
       if (data.success) {
         const content = data.content;
+        const metadata = data.metadata;
 
         // Simulate streaming effect
         let displayedContent = "";
@@ -383,9 +388,9 @@ export default function Home() {
         const newRequest: LLMRequest = {
           id: requestId,
           timestamp: new Date(),
-          endpoint: "/api/generate-slides",
+          endpoint: "/api/generate-content",
           status: "success",
-          tokensUsed: data.metadata?.tokensUsed || 600,
+          tokensUsed: metadata.tokensUsed,
           duration: durationMs,
         };
         addLLMRequest(newRequest);
@@ -399,8 +404,9 @@ export default function Home() {
           },
           {
             contentLength: content.length,
+            tokensUsed: metadata.tokensUsed,
           },
-          data.metadata?.tokensUsed || 600,
+          metadata.tokensUsed,
           durationMs
         );
 

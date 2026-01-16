@@ -14,8 +14,8 @@ export default function Header({ session }: HeaderProps) {
             <Presentation className="h-8 w-8 text-blue-600" />
           </div>
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Prez AI Presenter</h1>
-            <p className="text-gray-600">AI-powered presentation preparation tool</p>
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Make your presenter</h1>
+            <p className="text-gray-600">AI-powered tool</p>
           </div>
         </div>
         <div className="flex items-center gap-4">
