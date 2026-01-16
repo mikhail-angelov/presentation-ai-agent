@@ -6,74 +6,50 @@ import { PresentationStep } from "@/app/types";
 const steps: PresentationStep[] = [
   {
     id: 1,
-    title: "Define Your Topic",
-    description: "Clearly articulate what your presentation is about",
+    title: "Setup & Outline",
+    description: "Define your topic and generate presentation outline",
     icon: <Target className="h-6 w-6" />,
     completed: false,
     tips: [
       "Be specific about your topic",
-      "Consider what problem you're solving",
-      "Think about the main message"
+      "Identify your target audience",
+      "Define key points and duration"
     ]
   },
   {
     id: 2,
-    title: "Know Your Audience",
-    description: "Understand who you're presenting to",
-    icon: <Users className="h-6 w-6" />,
+    title: "Speech Generation",
+    description: "Convert outline to spoken presentation",
+    icon: <Mic className="h-6 w-6" />,
     completed: false,
     tips: [
-      "Identify audience knowledge level",
-      "Consider their interests and needs",
-      "Think about what they want to learn"
+      "Review and edit the generated speech",
+      "Adjust for natural speaking style",
+      "Consider timing and pacing"
     ]
   },
   {
     id: 3,
-    title: "Structure Your Content",
-    description: "Organize your presentation logically",
+    title: "Slide Creation",
+    description: "Create visual slides from speech content",
     icon: <Layout className="h-6 w-6" />,
     completed: false,
     tips: [
-      "Start with an engaging introduction",
-      "Present main points clearly",
-      "End with a strong conclusion"
-    ]
-  },
-  {
-    id: 4,
-    title: "Design Visuals",
-    description: "Create compelling slides and visuals",
-    icon: <Palette className="h-6 w-6" />,
-    completed: false,
-    tips: [
-      "Use consistent branding",
-      "Keep slides simple and clean",
+      "Focus on key visual elements",
+      "Keep slides simple and clear",
       "Use visuals to support your message"
     ]
   },
   {
-    id: 5,
-    title: "Practice Delivery",
-    description: "Rehearse your presentation",
-    icon: <Mic className="h-6 w-6" />,
-    completed: false,
-    tips: [
-      "Practice timing",
-      "Work on your tone and pace",
-      "Prepare for questions"
-    ]
-  },
-  {
-    id: 6,
+    id: 4,
     title: "Final Review",
     description: "Polish and perfect your presentation",
     icon: <CheckCircle className="h-6 w-6" />,
     completed: false,
     tips: [
-      "Check for errors",
-      "Test all equipment",
-      "Prepare backup materials"
+      "Review all content for consistency",
+      "Practice timing and delivery",
+      "Prepare for questions and feedback"
     ]
   }
 ];
