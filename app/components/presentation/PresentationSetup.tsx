@@ -1,6 +1,7 @@
 "use client";
 
 import { Brain } from "lucide-react";
+import { useTranslation } from "@/app/hooks/useTranslation";
 
 interface PresentationSetupProps {
   presentationTopic: string;
@@ -25,6 +26,8 @@ export default function PresentationSetup({
   setKeyPoints,
   onStartPresentation,
 }: PresentationSetupProps) {
+  const { t } = useTranslation();
+
   const handleKeyPointsChange = (value: string) => {
     // Keep all lines including empty ones for textarea display
     // Empty lines will be filtered when actually using the key points
@@ -46,20 +49,24 @@ export default function PresentationSetup({
       <div className="flex items-center gap-3 mb-6">
         <Brain className="h-7 w-7 text-blue-600" />
         <h2 className="text-xl md:text-2xl font-bold text-gray-900">
-          Presentation Setup
+          {t('setup.title')}
         </h2>
       </div>
+
+      <p className="text-gray-600 mb-6">
+        {t('setup.description')}
+      </p>
 
       <div className="space-y-6">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Presentation Topic *
+            {t('setup.topicLabel')} *
           </label>
           <input
             type="text"
             value={presentationTopic}
             onChange={(e) => setPresentationTopic(e.target.value)}
-            placeholder="What is your presentation about?"
+            placeholder={t('setup.topicPlaceholder')}
             className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
           />
         </div>
@@ -67,14 +74,14 @@ export default function PresentationSetup({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Target Audience
+              {t('setup.audienceLabel')}
             </label>
             <select
               value={targetAudience}
               onChange={(e) => setTargetAudience(e.target.value)}
               className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
             >
-              <option value="">Select audience</option>
+              <option value="">{t('setup.audiencePlaceholder')}</option>
               <option value="executives">Executives</option>
               <option value="developers">Developers</option>
               <option value="students">Students</option>
@@ -85,40 +92,36 @@ export default function PresentationSetup({
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Duration (minutes)
+              {t('setup.durationLabel')}
             </label>
             <select
               value={presentationDuration}
               onChange={(e) => setPresentationDuration(e.target.value)}
               className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
             >
-              <option value="5">5 minutes</option>
-              <option value="10">10 minutes</option>
-              <option value="15">15 minutes</option>
-              <option value="30">30 minutes</option>
-              <option value="45">45 minutes</option>
-              <option value="60">60 minutes</option>
+              <option value="5">5 {t('app.minutes')}</option>
+              <option value="10">10 {t('app.minutes')}</option>
+              <option value="15">15 {t('app.minutes')}</option>
+              <option value="30">30 {t('app.minutes')}</option>
+              <option value="45">45 {t('app.minutes')}</option>
+              <option value="60">60 {t('app.minutes')}</option>
             </select>
           </div>
         </div>
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Key Points (one per line)
+            {t('setup.keyPointsLabel')}
           </label>
           <textarea
             value={getKeyPointsText()}
             onChange={(e) => handleKeyPointsChange(e.target.value)}
-            placeholder="Enter key points, one per line:
-• First key point
-• Second key point
-• Third key point"
+            placeholder={t('setup.keyPointsPlaceholder')}
             rows={4}
             className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition resize-y"
           />
           <p className="mt-1 text-sm text-gray-500">
-            Enter each key point on a new line. They will be automatically
-            parsed.
+            {t('setup.keyPointsDescription')}
           </p>
         </div>
 
@@ -128,7 +131,7 @@ export default function PresentationSetup({
             disabled={!presentationTopic.trim()}
             className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-xl transition disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Start presentation preparation with AI
+            {t('setup.startPresentation')}
           </button>
         </div>
       </div>

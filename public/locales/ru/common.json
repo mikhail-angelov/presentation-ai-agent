@@ -1,0 +1,50 @@
+{
+  "app": {
+    "title": "Prez AI",
+    "subtitle": "Создание презентаций с помощью ИИ",
+    "loading": "Загрузка...",
+    "error": "Ошибка",
+    "success": "Успех",
+    "save": "Сохранить",
+    "cancel": "Отмена",
+    "delete": "Удалить",
+    "edit": "Редактировать",
+    "copy": "Копировать",
+    "download": "Скачать",
+    "back": "Назад",
+    "next": "Далее",
+    "finish": "Завершить",
+    "language": "Язык"
+  },
+  "header": {
+    "session": "Сессия активна",
+    "actions": "действий отслежено",
+    "started": "Начато"
+  },
+  "setup": {
+    "title": "Настройка презентации",
+    "description": "Определите детали вашей презентации, чтобы начать",
+    "topicLabel": "Тема презентации",
+    "topicPlaceholder": "Введите тему вашей презентации...",
+    "audienceLabel": "Целевая аудитория",
+    "audiencePlaceholder": "например, руководители, студенты, разработчики...",
+    "durationLabel": "Длительность презентации (минуты)",
+    "durationPlaceholder": "10",
+    "keyPointsLabel": "Ключевые моменты",
+    "keyPointsPlaceholder": "Введите ключевой момент...",
+    "keyPointsDescription": "Вводите каждый ключевой момент с новой строки. Они будут автоматически разобраны.",
+    "addKeyPoint": "Добавить ключевой момент",
+    "removeKeyPoint": "Удалить",
+    "startPresentation": "Начать презентацию",
+    "defineTopic": "Определить тему и аудиторию",
+    "generateStructure": "Сгенерировать структуру",
+    "createSpokenContent": "Создать устный контент",
+    "designVisuals": "Разработать визуалы"
+  },
+  "navigation": {
+    "presentationSteps": "Шаги презентации",
+    "stepOf": "Шаг {current} из {total}",
+    "previous": "Назад",
+    "continue": "Продолжить"
+  }
+}

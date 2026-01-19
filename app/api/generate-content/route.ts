@@ -10,9 +10,18 @@ async function generatePresentationContent(
   duration: string,
   keyPoints: string[],
   stepType: string = "outline",
-  previousContent?: string
+  previousContent?: string,
+  language: string = "en"
 ): Promise<string> {
   const filteredKeyPoints = keyPoints.filter((kp) => kp.trim() !== "");
+
+  // Language-specific instructions
+  const languageInstructions: Record<string, string> = {
+    en: "Generate content in English.",
+    ru: "Generate content in Russian (Русский). Use Cyrillic script and Russian language conventions.",
+  };
+
+  const languageInstruction = languageInstructions[language] || languageInstructions.en;
 
   let prompt = "";
   
@@ -29,6 +38,8 @@ KEY POINTS: ${
           ? filteredKeyPoints.join(", ")
           : "Not specified"
       }
+
+${languageInstruction}
 
 Generate a detailed, practical presentation outline that includes:
 1. Title and engaging introduction
@@ -52,6 +63,8 @@ PRESENTATION DURATION: ${duration} minutes
 PRESENTATION OUTLINE:
 ${previousContent || "No outline provided"}
 
+${languageInstruction}
+
 Create a natural, engaging spoken presentation script that:
 1. Has a conversational tone suitable for ${audience || "general audience"}
 2. Includes speaker notes and delivery suggestions
@@ -71,6 +84,8 @@ PRESENTATION TOPIC: ${topic}
 TARGET AUDIENCE: ${audience || "General audience"}
 SPEECH SCRIPT:
 ${previousContent || "No speech script provided"}
+
+${languageInstruction}
 
 Create comprehensive slide content that:
 1. Breaks the speech into logical slides (approximately 1 slide per minute)
@@ -96,6 +111,8 @@ KEY POINTS: ${
           : "Not specified"
       }
 
+${languageInstruction}
+
 Generate comprehensive presentation content in markdown format.`;
   }
 
@@ -111,7 +128,7 @@ Generate comprehensive presentation content in markdown format.`;
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { topic, audience, duration, keyPoints, stepType, previousContent } = body;
+    const { topic, audience, duration, keyPoints, stepType, previousContent, language = "en" } = body;
 
     if (!topic) {
       return NextResponse.json(
@@ -139,7 +156,8 @@ export async function POST(request: NextRequest) {
       duration || "10",
       keyPoints || [],
       stepType || "outline",
-      previousContent
+      previousContent,
+      language
     );
 
     // Calculate processing time and token usage

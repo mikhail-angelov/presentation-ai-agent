@@ -1,0 +1,50 @@
+{
+  "app": {
+    "title": "Prez AI",
+    "subtitle": "AI-Powered Presentation Creator",
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "copy": "Copy",
+    "download": "Download",
+    "back": "Back",
+    "next": "Next",
+    "finish": "Finish",
+    "language": "Language"
+  },
+  "header": {
+    "session": "Session Active",
+    "actions": "actions tracked",
+    "started": "Started"
+  },
+  "setup": {
+    "title": "Presentation Setup",
+    "description": "Define your presentation details to get started",
+    "topicLabel": "Presentation Topic",
+    "topicPlaceholder": "Enter your presentation topic...",
+    "audienceLabel": "Target Audience",
+    "audiencePlaceholder": "e.g., executives, students, developers...",
+    "durationLabel": "Presentation Duration (minutes)",
+    "durationPlaceholder": "10",
+    "keyPointsLabel": "Key Points",
+    "keyPointsPlaceholder": "Enter a key point...",
+    "keyPointsDescription": "Enter each key point on a new line. They will be automatically parsed.",
+    "addKeyPoint": "Add Key Point",
+    "removeKeyPoint": "Remove",
+    "startPresentation": "Start Presentation",
+    "defineTopic": "Define topic & audience",
+    "generateStructure": "Generate structure",
+    "createSpokenContent": "Create spoken content",
+    "designVisuals": "Design visuals"
+  },
+  "navigation": {
+    "presentationSteps": "Presentation Steps",
+    "stepOf": "Step {current} of {total}",
+    "previous": "Previous",
+    "continue": "Continue"
+  }
+}

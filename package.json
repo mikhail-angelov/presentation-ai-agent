@@ -6,9 +6,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
-    "agent": "node deepseek-agent-server.js",
-    "agent:dev": "node --watch deepseek-agent-server.js"
+    "start": "next start"
   },
   "dependencies": {
     "@langchain/core": "^1.1.13",

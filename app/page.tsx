@@ -6,13 +6,13 @@ import PresentationSetup from "./components/presentation/PresentationSetup";
 import OutlineStep from "./components/presentation/OutlineStep";
 import SpeechStep from "./components/presentation/SpeechStep";
 import SlidesStep from "./components/presentation/SlidesStep";
-import StepNavigation from "./components/presentation/StepNavigation";
 import StreamingDisplay from "./components/presentation/StreamingDisplay";
 import UserGuides from "./components/presentation/UserGuides";
 import PreparationSteps from "./components/presentation/PreparationSteps";
 import AIUsageMonitoring from "./components/monitoring/AIUsageMonitoring";
 import { LLMRequest, RateLimit } from "./types";
 import { useSession } from "./hooks/useSession";
+import { useTranslation } from "./hooks/useTranslation";
 
 // Define step types
 type StepType = "setup" | "outline" | "speech" | "slides";
@@ -31,6 +31,7 @@ interface StepContent {
 
 export default function Home() {
   const { session, trackAction } = useSession();
+  const { currentLanguage } = useTranslation();
   
   // Step management
   const [activeStep, setActiveStep] = useState<StepType>("setup");
@@ -132,6 +133,7 @@ export default function Home() {
           duration,
           keyPoints: keyPoints.filter((kp) => kp.trim() !== ""),
           stepType: "outline",
+          language: currentLanguage,
         }),
       });
 
@@ -273,6 +275,7 @@ export default function Home() {
           keyPoints: ["Convert outline to spoken speech", "Natural speaking style", "Engaging delivery"],
           stepType: "speech",
           previousContent: outline,
+          language: currentLanguage,
         }),
       });
 
@@ -362,6 +365,7 @@ export default function Home() {
           keyPoints: ["Create slide content", "Visual suggestions", "Slide structure"],
           stepType: "slides",
           previousContent: speech,
+          language: currentLanguage,
         }),
       });
 
@@ -511,14 +515,6 @@ export default function Home() {
       <div className="max-w-7xl mx-auto">
         <Header session={session} />
 
-        {/* Step Navigation */}
-        <StepNavigation
-          activeStep={activeStep}
-          stepHistory={stepHistory}
-          onNavigate={navigateToStep}
-        />
-
-        {/* Streaming Content Display */}
         <StreamingDisplay
           isGenerating={isGenerating}
           streamingContent={streamingContent}
