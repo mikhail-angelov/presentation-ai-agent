@@ -14,7 +14,8 @@
     "back": "Назад",
     "next": "Далее",
     "finish": "Завершить",
-    "language": "Язык"
+    "language": "Язык",
+    "minutes": "минут"
   },
   "header": {
     "session": "Сессия активна",

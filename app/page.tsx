@@ -31,8 +31,8 @@ interface StepContent {
 
 export default function Home() {
   const { session, trackAction } = useSession();
-  const { currentLanguage } = useTranslation();
-  
+  const { currentLanguage, isLoading } = useTranslation();
+
   // Step management
   const [activeStep, setActiveStep] = useState<StepType>("setup");
   const [stepHistory, setStepHistory] = useState<StepType[]>(["setup"]);
@@ -47,7 +47,7 @@ export default function Home() {
     speech: "",
     slides: "",
   });
-  
+
   // UI states
   const [llmRequests, setLlmRequests] = useState<LLMRequest[]>([]);
   const [rateLimit, setRateLimit] = useState<RateLimit>({
@@ -75,16 +75,16 @@ export default function Home() {
   };
 
   const updateStepContent = (step: StepType, content: any) => {
-    setStepContents(prev => ({
+    setStepContents((prev) => ({
       ...prev,
-      [step]: content
+      [step]: content,
     }));
   };
 
   // Helper functions for content actions
   const handleDownloadContent = (content: string, filename: string) => {
     const element = document.createElement("a");
-    const file = new Blob([content], { type: 'text/markdown' });
+    const file = new Blob([content], { type: "text/markdown" });
     element.href = URL.createObjectURL(file);
     element.download = filename;
     document.body.appendChild(element);
@@ -100,26 +100,20 @@ export default function Home() {
   // Step 1: Generate Outline
   const handleGenerateOutline = async () => {
     const { topic, audience, duration, keyPoints } = stepContents.setup;
-    
     if (!topic.trim()) {
       alert("Please enter a presentation topic first.");
       return;
     }
-
     setIsGenerating(true);
     setStreamingContent("");
-
-    // Track presentation start in session
     trackAction("start_presentation", {
       topic,
       audience,
       duration,
       keyPoints: keyPoints.filter((kp) => kp.trim() !== ""),
     });
-
     const startTime = Date.now();
     const requestId = Math.random().toString(36).substr(2, 9);
-
     try {
       const response = await fetch("/api/generate-content", {
         method: "POST",
@@ -136,26 +130,21 @@ export default function Home() {
           language: currentLanguage,
         }),
       });
-
       const data = await response.json();
       const durationMs = Date.now() - startTime;
-
       if (data.success) {
         const content = data.content;
         const metadata = data.metadata;
-
         // Simulate streaming effect
         let displayedContent = "";
         const words = content.split(" ");
         for (let i = 0; i < words.length; i++) {
-          await new Promise(resolve => setTimeout(resolve, 30));
+          await new Promise((resolve) => setTimeout(resolve, 30));
           displayedContent += words[i] + " ";
           setStreamingContent(displayedContent);
         }
-
         // Update outline content
         updateStepContent("outline", content);
-        
         // Add to LLM requests
         const newRequest: LLMRequest = {
           id: requestId,
@@ -166,7 +155,6 @@ export default function Home() {
           duration: durationMs,
         };
         addLLMRequest(newRequest);
-
         // Track successful generation in session
         trackAction(
           "generate_presentation_success",
@@ -184,12 +172,10 @@ export default function Home() {
           metadata.tokensUsed,
           durationMs
         );
-
         // Navigate to outline step after streaming completes
         setTimeout(() => {
           navigateToStep("outline");
         }, 500);
-
       } else {
         // Track failed generation in session
         trackAction(
@@ -204,7 +190,6 @@ export default function Home() {
           undefined,
           durationMs
         );
-
         const errorRequest: LLMRequest = {
           id: requestId,
           timestamp: new Date(),
@@ -214,13 +199,11 @@ export default function Home() {
           duration: durationMs,
         };
         addLLMRequest(errorRequest);
-
         alert(`Error: ${data.error || "Failed to generate content"}`);
       }
     } catch (error) {
       const durationMs = Date.now() - startTime;
       console.error("Error generating content:", error);
-
       // Track network error in session
       trackAction(
         "generate_presentation_network_error",
@@ -233,7 +216,6 @@ export default function Home() {
         undefined,
         durationMs
       );
-
       const errorRequest: LLMRequest = {
         id: requestId,
         timestamp: new Date(),
@@ -243,7 +225,6 @@ export default function Home() {
         duration: durationMs,
       };
       addLLMRequest(errorRequest);
-
       alert("Failed to connect to AI service. Please try again.");
     } finally {
       setIsGenerating(false);
@@ -272,7 +253,11 @@ export default function Home() {
           topic,
           audience,
           duration,
-          keyPoints: ["Convert outline to spoken speech", "Natural speaking style", "Engaging delivery"],
+          keyPoints: [
+            "Convert outline to spoken speech",
+            "Natural speaking style",
+            "Engaging delivery",
+          ],
           stepType: "speech",
           previousContent: outline,
           language: currentLanguage,
@@ -290,14 +275,14 @@ export default function Home() {
         let displayedContent = "";
         const words = content.split(" ");
         for (let i = 0; i < words.length; i++) {
-          await new Promise(resolve => setTimeout(resolve, 30));
+          await new Promise((resolve) => setTimeout(resolve, 30));
           displayedContent += words[i] + " ";
           setStreamingContent(displayedContent);
         }
 
         // Update speech content
         updateStepContent("speech", content);
-        
+
         // Add to LLM requests
         const newRequest: LLMRequest = {
           id: requestId,
@@ -328,7 +313,6 @@ export default function Home() {
         setTimeout(() => {
           navigateToStep("speech");
         }, 500);
-
       } else {
         alert(`Error: ${data.error || "Failed to generate speech"}`);
       }
@@ -362,7 +346,11 @@ export default function Home() {
           topic,
           audience,
           duration,
-          keyPoints: ["Create slide content", "Visual suggestions", "Slide structure"],
+          keyPoints: [
+            "Create slide content",
+            "Visual suggestions",
+            "Slide structure",
+          ],
           stepType: "slides",
           previousContent: speech,
           language: currentLanguage,
@@ -380,14 +368,14 @@ export default function Home() {
         let displayedContent = "";
         const words = content.split(" ");
         for (let i = 0; i < words.length; i++) {
-          await new Promise(resolve => setTimeout(resolve, 30));
+          await new Promise((resolve) => setTimeout(resolve, 30));
           displayedContent += words[i] + " ";
           setStreamingContent(displayedContent);
         }
 
         // Update slides content
         updateStepContent("slides", content);
-        
+
         // Add to LLM requests
         const newRequest: LLMRequest = {
           id: requestId,
@@ -418,7 +406,6 @@ export default function Home() {
         setTimeout(() => {
           navigateToStep("slides");
         }, 500);
-
       } else {
         alert(`Error: ${data.error || "Failed to generate slides"}`);
       }
@@ -452,13 +439,21 @@ export default function Home() {
         return (
           <PresentationSetup
             presentationTopic={stepContents.setup.topic}
-            setPresentationTopic={(topic) => updateStepContent("setup", { ...stepContents.setup, topic })}
+            setPresentationTopic={(topic) =>
+              updateStepContent("setup", { ...stepContents.setup, topic })
+            }
             targetAudience={stepContents.setup.audience}
-            setTargetAudience={(audience) => updateStepContent("setup", { ...stepContents.setup, audience })}
+            setTargetAudience={(audience) =>
+              updateStepContent("setup", { ...stepContents.setup, audience })
+            }
             presentationDuration={stepContents.setup.duration}
-            setPresentationDuration={(duration) => updateStepContent("setup", { ...stepContents.setup, duration })}
+            setPresentationDuration={(duration) =>
+              updateStepContent("setup", { ...stepContents.setup, duration })
+            }
             keyPoints={stepContents.setup.keyPoints}
-            setKeyPoints={(keyPoints) => updateStepContent("setup", { ...stepContents.setup, keyPoints })}
+            setKeyPoints={(keyPoints) =>
+              updateStepContent("setup", { ...stepContents.setup, keyPoints })
+            }
             onStartPresentation={handleGenerateOutline}
           />
         );
@@ -510,6 +505,14 @@ export default function Home() {
     }
   };
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-blue-50">
+        <span className="text-lg text-blue-700 font-semibold">Loading…</span>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 p-4 md:p-8">
       <div className="max-w-7xl mx-auto">
@@ -530,18 +533,33 @@ export default function Home() {
           {/* Right Column - Step-by-Step Flow & API Monitoring */}
           <div className="space-y-6 md:space-y-8">
             <PreparationSteps
-              currentStep={(["setup", "outline", "speech", "slides"].indexOf(activeStep) + 1)}
+              currentStep={
+                ["setup", "outline", "speech", "slides"].indexOf(activeStep) + 1
+              }
               onPreviousStep={() => {
-                const steps = ["setup", "outline", "speech", "slides"] as StepType[];
+                const steps = [
+                  "setup",
+                  "outline",
+                  "speech",
+                  "slides",
+                ] as StepType[];
                 const currentIndex = steps.indexOf(activeStep);
                 if (currentIndex > 0) {
                   navigateToStep(steps[currentIndex - 1]);
                 }
               }}
               onNextStep={() => {
-                const steps = ["setup", "outline", "speech", "slides"] as StepType[];
+                const steps = [
+                  "setup",
+                  "outline",
+                  "speech",
+                  "slides",
+                ] as StepType[];
                 const currentIndex = steps.indexOf(activeStep);
-                if (currentIndex < steps.length - 1 && stepHistory.includes(steps[currentIndex + 1])) {
+                if (
+                  currentIndex < steps.length - 1 &&
+                  stepHistory.includes(steps[currentIndex + 1])
+                ) {
                   navigateToStep(steps[currentIndex + 1]);
                 }
               }}

@@ -14,7 +14,8 @@
     "back": "Back",
     "next": "Next",
     "finish": "Finish",
-    "language": "Language"
+    "language": "Language",
+    "minutes": "minutes"
   },
   "header": {
     "session": "Session Active",

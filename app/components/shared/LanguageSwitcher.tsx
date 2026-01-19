@@ -5,7 +5,7 @@ import { Globe } from 'lucide-react';
 import { useTranslation, Language, supportedLanguages } from '@/app/hooks/useTranslation';
 
 export default function LanguageSwitcher() {
-  const { t, currentLanguage, changeLanguage, isLoading } = useTranslation();
+  const { currentLanguage, changeLanguage, isLoading } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
 
   const handleLanguageChange = (lang: Language) => {
