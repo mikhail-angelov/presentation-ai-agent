@@ -24,9 +24,12 @@ interface LayoutProps {
 export default async function RootLayout({
   children,
 }: LayoutProps) {
-  
   return (
     <html>
+      <head>
+        <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+        <link rel="icon" href="/favicon.png" sizes="32x32" />
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
