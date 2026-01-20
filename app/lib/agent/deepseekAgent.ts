@@ -1,14 +1,10 @@
 import "dotenv/config";
 import { ChatDeepSeek } from "@langchain/deepseek";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
-import { DynamicStructuredTool } from "@langchain/core/tools";
-import { z } from "zod";
 
 const config = {
   deepseekApiKey: process.env.DEEPSEEK_API_KEY || "",
   deepseekBaseUrl: "https://api.deepseek.com",
-  agentName: "Prez AI Agent",
-  agentDescription: "AI agent with thinking critic and planning capabilities",
 };
 
 // Validate configuration
@@ -29,6 +25,7 @@ const deepSeekConfig = {
   temperature: 0.7,
   maxTokens: 4000, // Increased for reasoning
   reasoningEffort: "high", // Enable reasoning effort
+  streaming: true, // Enable streaming
 };
 
 // Initialize DeepSeek LLM using ChatDeepSeek (DeepSeek is OpenAI-compatible)
@@ -39,245 +36,95 @@ if (!llm) {
   process.exit(1);
 }
 
-console.log(`🚀 ${config.agentName} initializing...`);
-console.log(`📝 Description: ${config.agentDescription}`);
+console.log(`🚀 initializing...`);
 
-// Thinking Critic Tools
-const thinkingCriticTools = [
-  new DynamicStructuredTool({
-    name: "thinking",
-    description:
-      "Analyze and critique a thought process for logical flaws, biases, and improvements",
-    schema: z.object({
-      thought_process: z.string().describe("The thinking process to critique"),
-      context: z
-        .string()
-        .optional()
-        .describe("Additional context for the critique"),
-    }),
-    func: async ({ thought_process, context }) => {
-      const prompt = `As a thinking critic, analyze this thought process for logical consistency, biases, and potential improvements:
+// System prompts for different steps and languages
+const SYSTEM_PROMPTS = {
+  outline: {
+    en: `You are a presentation expert. Develop a comprehensive presentation outline with these details:
 
-Thought Process: ${thought_process}
-${context ? `Context: ${context}` : ""}
+Generate a detailed, practical presentation outline that includes:
+1. Title and engaging introduction
+2. Structured framework with time allocations
+3. Content development for each key point
+4. Visual design suggestions
+5. Audience engagement strategies
+6. Delivery techniques
+7. Q&A preparation
+8. Clear call to action
 
-Provide a structured critique with:
-1. Logical flaws identified
-2. Cognitive biases detected  
-3. Alternative perspectives
-4. Specific improvements suggested
-5. Confidence level in the original thinking`;
+Format in markdown with clear headings and bullet points. Think step-by-step and provide well-reasoned, comprehensive responses.`,
+    ru: `Вы эксперт по созданию презентаций. Разработайте комплексную структуру презентации с учетом следующих деталей:
 
-      const response = await llm.invoke([
-        new SystemMessage(
-          "You are a critical thinking expert. Analyze thought processes rigorously but constructively."
-        ),
-        new HumanMessage(prompt),
-      ]);
+Создайте подробную, практичную структуру презентации, которая включает:
+1. Заголовок и увлекательное введение
+2. Структурированную основу с распределением времени
+3. Разработку содержания для каждого ключевого пункта
+4. Предложения по визуальному оформлению
+5. Стратегии вовлечения аудитории
+6. Техники подачи материала
+7. Подготовку к вопросам и ответам
+8. Четкий призыв к действию
 
-      return JSON.stringify(
-        {
-          critique: response.content,
-          timestamp: new Date().toISOString(),
-          tool_used: "thinking",
-        },
-        null,
-        2
-      );
-    },
-  }),
-  new DynamicStructuredTool({
-    name: "planing",
-    description:
-      "Generate step-by-step advice for improving thinking or decision making",
-    schema: z.object({
-      problem: z.string().describe("The problem or decision needing advice"),
-      current_approach: z
-        .string()
-        .optional()
-        .describe("Current approach being taken"),
-    }),
-    func: async ({ problem, current_approach }) => {
-      const prompt = `Generate step-by-step advice for this problem:
+Форматируйте в markdown с четкими заголовками и маркированными списками. Думайте шаг за шагом и предоставляйте хорошо обоснованные, комплексные ответы.`
+  },
+  speech: {
+    en: `You are a professional speech writer. Create a spoken presentation script based on the provided outline.
 
-Problem: ${problem}
-${current_approach ? `Current Approach: ${current_approach}` : ""}
+Create a natural, engaging spoken presentation script that:
+1. Has a conversational tone suitable for the target audience
+2. Includes speaker notes and delivery suggestions
+3. Incorporates rhetorical devices (questions, pauses, emphasis)
+4. Provides timing guidance
+5. Includes audience interaction points
+6. Has clear transitions between sections
+7. Ends with a memorable conclusion
 
-Provide actionable advice steps that:
-1. Break down the problem systematically
-2. Suggest concrete actions
-3. Include checkpoints for evaluation
-4. Consider potential pitfalls
-5. Offer alternative strategies`;
+Format as a speaker's script with clear indications for pacing, emphasis, and audience engagement. Think step-by-step and provide well-reasoned, comprehensive responses.`,
+    ru: `Вы профессиональный писатель речей. Создайте устный сценарий презентации на основе предоставленной структуры.
 
-      const response = await llm.invoke([
-        new SystemMessage(
-          "You are an expert advisor who provides clear, actionable, step-by-step guidance."
-        ),
-        new HumanMessage(prompt),
-      ]);
+Создайте естественный, увлекательный устный сценарий презентации, который:
+1. Имеет разговорный тон, подходящий для целевой аудитории
+2. Включает заметки для выступающего и предложения по подаче
+3. Использует риторические приемы (вопросы, паузы, акценты)
+4. Предоставляет рекомендации по времени
+5. Включает точки взаимодействия с аудиторией
+6. Имеет четкие переходы между разделами
+7. Заканчивается запоминающимся заключением
 
-      return JSON.stringify(
-        {
-          advice_steps: response.content,
-          generated_at: new Date().toISOString(),
-          tool_used: "planing",
-        },
-        null,
-        2
-      );
-    },
-  }),
-];
+Форматируйте как сценарий выступающего с четкими указаниями по темпу, акцентам и вовлечению аудитории. Думайте шаг за шагом и предоставляйте хорошо обоснованные, комплексные ответы.`
+  },
+  slides: {
+    en: `You are a presentation design expert. Create slide content based on the provided speech script.
 
-// Planning Tools (with simulated user approval)
-let currentPlan: any = null;
-let planApprovalStatus = "none";
+Create comprehensive slide content that:
+1. Breaks the speech into logical slides (approximately 1 slide per minute)
+2. Provides concise bullet points for each slide (not full sentences)
+3. Suggests visual elements (charts, images, diagrams) where appropriate
+4. Includes slide titles that summarize key messages
+5. Provides speaker notes for each slide
+6. Follows good presentation design principles (contrast, repetition, alignment, proximity)
+7. Creates a visual story flow
 
-const planningTools = [
-  new DynamicStructuredTool({
-    name: "create_plan",
-    description:
-      "Create or update a detailed plan with milestones and dependencies",
-    schema: z.object({
-      objective: z.string().describe("The main objective of the plan"),
-      constraints: z.string().optional().describe("Constraints or limitations"),
-      timeline: z.string().optional().describe("Desired timeline or deadline"),
-    }),
-    func: async ({ objective, constraints, timeline }) => {
-      const prompt = `Create a detailed plan for this objective:
+Format as markdown with clear slide separators and visual suggestions. Think step-by-step and provide well-reasoned, comprehensive responses.`,
+    ru: `Вы эксперт по дизайну презентаций. Создайте содержание слайдов на основе предоставленного сценария речи.
 
-Objective: ${objective}
-${constraints ? `Constraints: ${constraints}` : ""}
-${timeline ? `Timeline: ${timeline}` : ""}
+Создайте комплексное содержание слайдов, которое:
+1. Разбивает речь на логические слайды (примерно 1 слайд в минуту)
+2. Предоставляет краткие маркированные пункты для каждого слайда (не полные предложения)
+3. Предлагает визуальные элементы (графики, изображения, диаграммы) там, где это уместно
+4. Включает заголовки слайдов, которые суммируют ключевые сообщения
+5. Предоставляет заметки для выступающего для каждого слайда
+6. Следует хорошим принципам дизайна презентаций (контраст, повторение, выравнивание, близость)
+7. Создает визуальный поток повествования
 
-Create a comprehensive plan with:
-1. Clear milestones and deliverables
-2. Dependencies between tasks
-3. Resource requirements
-4. Risk assessment
-5. Success criteria
-6. Timeline with estimates`;
-
-      const response = await llm.invoke([
-        new SystemMessage(
-          "You are an expert planner who creates detailed, actionable plans with clear milestones."
-        ),
-        new HumanMessage(prompt),
-      ]);
-
-      currentPlan = {
-        objective,
-        constraints,
-        timeline,
-        plan_details: response.content,
-        created_at: new Date().toISOString(),
-        requires_approval: true,
-      };
-      planApprovalStatus = "pending_review";
-
-      return JSON.stringify(
-        {
-          plan: currentPlan,
-          message:
-            "Plan created successfully. Requires user approval before execution.",
-          approval_required: true,
-          tool_used: "create_plan",
-        },
-        null,
-        2
-      );
-    },
-  }),
-  new DynamicStructuredTool({
-    name: "request_plan_approval",
-    description:
-      "Request user approval for the current plan (simulates user interaction)",
-    schema: z.object({
-      changes_requested: z
-        .string()
-        .optional()
-        .describe("Any changes requested by the user"),
-    }),
-    func: async ({ changes_requested }) => {
-      if (!currentPlan) {
-        return JSON.stringify({
-          error: "No plan exists to approve. Create a plan first.",
-        });
-      }
-
-      if (changes_requested) {
-        // Update plan based on requested changes
-        const updatePrompt = `Update the existing plan based on these requested changes:
-
-Original Plan Objective: ${currentPlan.objective}
-Requested Changes: ${changes_requested}
-
-Provide an updated plan that incorporates the requested changes while maintaining coherence.`;
-
-        const updateResponse = await llm.invoke([
-          new SystemMessage(
-            "You are a planner who incorporates feedback and updates plans accordingly."
-          ),
-          new HumanMessage(updatePrompt),
-        ]);
-
-        currentPlan.plan_details = updateResponse.content;
-        currentPlan.updated_at = new Date().toISOString();
-        currentPlan.changes_requested = changes_requested;
-      }
-
-      // Simulate user approval process
-      console.log("\n⚠️  PLAN APPROVAL REQUIRED ⚠️");
-      console.log("Plan requires user approval before execution.");
-      console.log("Objective:", currentPlan.objective);
-      console.log("Simulating user approval...");
-
-      // Simulate approval delay
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      planApprovalStatus = "approved";
-      currentPlan.approved_at = new Date().toISOString();
-      currentPlan.approved_by = "user";
-
-      return JSON.stringify(
-        {
-          status: "approved",
-          plan: currentPlan,
-          message: "Plan approved successfully. Ready for execution.",
-          timestamp: new Date().toISOString(),
-          tool_used: "request_plan_approval",
-        },
-        null,
-        2
-      );
-    },
-  }),
-  new DynamicStructuredTool({
-    name: "check_plan_status",
-    description: "Check the current plan status and approval state",
-    schema: z.object({}),
-    func: async () => {
-      return JSON.stringify(
-        {
-          current_plan: currentPlan,
-          approval_status: planApprovalStatus,
-          last_updated: new Date().toISOString(),
-          tool_used: "check_plan_status",
-        },
-        null,
-        2
-      );
-    },
-  }),
-];
-
-// Combine all tools
-const allTools = [...thinkingCriticTools, ...planningTools];
+Форматируйте в markdown с четкими разделителями слайдов и визуальными предложениями. Думайте шаг за шагом и предоставляйте хорошо обоснованные, комплексные ответы.`
+  }
+};
 
 // Enhanced agent implementation with continuous processing and concatenation
-async function runAgent(input: string): Promise<string> {
-  console.log("\n🤖 Agent analyzing request with reasoning...");
+async function runAgent(input: string, stepType: string = "outline", language: string = "en"): Promise<string> {
+  console.log(`\n🤖 Agent analyzing request for step: ${stepType}, language: ${language}...`);
   
   // Track all responses for concatenation
   const allResponses: string[] = [];
@@ -285,24 +132,12 @@ async function runAgent(input: string): Promise<string> {
   let iteration = 0;
   const maxIterations = 3; // Limit to prevent infinite loops
   
-  // System message for reasoning agent
-  const systemMessage = new SystemMessage(`You are ${config.agentName}, an advanced reasoning AI assistant with thinking critic and planning capabilities.
-
-Your capabilities:
-1. CRITICAL THINKING: Analyze thought processes for logical flaws, biases, and improvements
-2. PLANNING: Create detailed plans with milestones, dependencies, and risk assessment
-3. ADVICE: Provide step-by-step guidance for complex problems
-4. REASONING: Break down complex problems into manageable steps
-5. SYNTHESIS: Combine multiple perspectives into coherent solutions
-
-Reasoning Process:
-1. First, analyze the user's request to understand the core need
-2. Break down complex requests into logical components
-3. Process each component systematically
-4. Synthesize insights from all components
-5. Provide comprehensive, actionable responses
-
-Always think step-by-step and provide well-reasoned, comprehensive responses.`);
+  // Get appropriate system prompt
+  const stepKey = stepType as keyof typeof SYSTEM_PROMPTS;
+  const languageKey = language as keyof typeof SYSTEM_PROMPTS.outline;
+  const systemPrompt = SYSTEM_PROMPTS[stepKey]?.[languageKey] || SYSTEM_PROMPTS.outline.en;
+  
+  const systemMessage = new SystemMessage(systemPrompt);
 
   while (iteration < maxIterations) {
     iteration++;
@@ -386,4 +221,41 @@ Always think step-by-step and provide well-reasoned, comprehensive responses.`);
   return finalResponse;
 }
 
-export { runAgent };
+// Streaming agent implementation for real-time feedback
+async function* runAgentStream(input: string, stepType: string = "outline", language: string = "en"): AsyncGenerator<string> {
+  console.log(`\n🤖 Streaming agent for step: ${stepType}, language: ${language}...`);
+  
+  // Get appropriate system prompt
+  const stepKey = stepType as keyof typeof SYSTEM_PROMPTS;
+  const languageKey = language as keyof typeof SYSTEM_PROMPTS.outline;
+  const systemPrompt = SYSTEM_PROMPTS[stepKey]?.[languageKey] || SYSTEM_PROMPTS.outline.en;
+  
+  const systemMessage = new SystemMessage(systemPrompt);
+  const messages: (SystemMessage | HumanMessage)[] = [systemMessage, new HumanMessage(input)];
+  
+  try {
+    // Use streaming API
+    const stream = await llm.stream(messages);
+    
+    for await (const chunk of stream) {
+      if (chunk.content) {
+        const content = typeof chunk.content === 'string' 
+          ? chunk.content 
+          : Array.isArray(chunk.content)
+          ? chunk.content.map(c => typeof c === 'string' ? c : JSON.stringify(c)).join(' ')
+          : JSON.stringify(chunk.content);
+        
+        if (content.trim()) {
+          yield content;
+        }
+      }
+    }
+    
+    console.log(`✅ Streaming completed for ${stepType}`);
+  } catch (error) {
+    console.error(`❌ Error in streaming agent:`, error);
+    yield `Error: ${error instanceof Error ? error.message : 'Failed to generate content'}`;
+  }
+}
+
+export { runAgent, runAgentStream };

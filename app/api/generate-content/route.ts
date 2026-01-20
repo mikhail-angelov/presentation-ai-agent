@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sessionStore } from "@/app/lib/session/store";
 import { SESSION_COOKIE_NAME } from "@/app/types/session";
-import { runAgent } from "@/app/lib/agent/deepseekAgent";
+import { runAgent, runAgentStream } from "@/app/lib/agent/deepseekAgent";
 
 // AI response generator for presentation content using DeepSeek agent
 async function generatePresentationContent(
@@ -15,20 +15,12 @@ async function generatePresentationContent(
 ): Promise<string> {
   const filteredKeyPoints = keyPoints.filter((kp) => kp.trim() !== "");
 
-  // Language-specific instructions
-  const languageInstructions: Record<string, string> = {
-    en: "Generate content in English.",
-    ru: "Generate content in Russian (Русский). Use Cyrillic script and Russian language conventions.",
-  };
-
-  const languageInstruction = languageInstructions[language] || languageInstructions.en;
-
   let prompt = "";
   
   switch (stepType) {
     case "thesis":
     case "outline":
-      prompt = `You are a presentation expert. Develop a comprehensive presentation outline with these details:
+      prompt = `Generate a presentation outline with these details:
 
 TOPIC: ${topic}
 AUDIENCE: ${audience || "General audience"}
@@ -39,23 +31,11 @@ KEY POINTS: ${
           : "Not specified"
       }
 
-${languageInstruction}
-
-Generate a detailed, practical presentation outline that includes:
-1. Title and engaging introduction
-2. Structured framework with time allocations
-3. Content development for each key point
-4. Visual design suggestions
-5. Audience engagement strategies
-6. Delivery techniques
-7. Q&A preparation
-8. Clear call to action
-
-Format in markdown with clear headings and bullet points.`;
+Generate a detailed, practical presentation outline.`;
       break;
 
     case "speech":
-      prompt = `You are a professional speech writer. Create a spoken presentation script based on this outline:
+      prompt = `Create a spoken presentation script based on this outline:
 
 PRESENTATION TOPIC: ${topic}
 TARGET AUDIENCE: ${audience || "General audience"}
@@ -63,44 +43,22 @@ PRESENTATION DURATION: ${duration} minutes
 PRESENTATION OUTLINE:
 ${previousContent || "No outline provided"}
 
-${languageInstruction}
-
-Create a natural, engaging spoken presentation script that:
-1. Has a conversational tone suitable for ${audience || "general audience"}
-2. Includes speaker notes and delivery suggestions
-3. Incorporates rhetorical devices (questions, pauses, emphasis)
-4. Provides timing guidance for ${duration} minute presentation
-5. Includes audience interaction points
-6. Has clear transitions between sections
-7. Ends with a memorable conclusion
-
-Format as a speaker's script with clear indications for pacing, emphasis, and audience engagement.`;
+Create a natural, engaging spoken presentation script.`;
       break;
 
     case "slides":
-      prompt = `You are a presentation design expert. Create slide content based on this speech script:
+      prompt = `Create slide content based on this speech script:
 
 PRESENTATION TOPIC: ${topic}
 TARGET AUDIENCE: ${audience || "General audience"}
 SPEECH SCRIPT:
 ${previousContent || "No speech script provided"}
 
-${languageInstruction}
-
-Create comprehensive slide content that:
-1. Breaks the speech into logical slides (approximately 1 slide per minute)
-2. Provides concise bullet points for each slide (not full sentences)
-3. Suggests visual elements (charts, images, diagrams) where appropriate
-4. Includes slide titles that summarize key messages
-5. Provides speaker notes for each slide
-6. Follows good presentation design principles (contrast, repetition, alignment, proximity)
-7. Creates a visual story flow
-
-Format as markdown with clear slide separators and visual suggestions.`;
+Create comprehensive slide content.`;
       break;
 
     default:
-      prompt = `You are a presentation expert. Develop content for this presentation:
+      prompt = `Develop content for this presentation:
 
 TOPIC: ${topic}
 AUDIENCE: ${audience || "General audience"}
@@ -111,13 +69,11 @@ KEY POINTS: ${
           : "Not specified"
       }
 
-${languageInstruction}
-
-Generate comprehensive presentation content in markdown format.`;
+Generate comprehensive presentation content.`;
   }
 
   try {
-    const content = await runAgent(prompt);
+    const content = await runAgent(prompt, stepType, language);
     return content;
   } catch (error) {
     console.error("Error generating content with DeepSeek agent:", error);
@@ -125,10 +81,11 @@ Generate comprehensive presentation content in markdown format.`;
   }
 }
 
+// Streaming endpoint for real-time LLM feedback
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { topic, audience, duration, keyPoints, stepType, previousContent, language = "en" } = body;
+    const { topic, audience, duration, keyPoints, stepType, previousContent, language = "en", stream = false } = body;
 
     if (!topic) {
       return NextResponse.json(
@@ -139,15 +96,133 @@ export async function POST(request: NextRequest) {
 
     // Get session ID from cookie
     const sessionId = request.cookies.get(SESSION_COOKIE_NAME)?.value;
-    let session = null;
-
+    
     // Create session action for tracking
     const actionStartTime = Date.now();
     const actionId = `act_${Date.now()}_${Math.random()
       .toString(36)
       .substr(2, 9)}`;
 
-    // Simulate API processing time
+    // If streaming is requested, return a streaming response
+    if (stream) {
+      const filteredKeyPoints = (keyPoints || []).filter((kp: string) => kp.trim() !== "");
+      
+      let prompt = "";
+      switch (stepType || "outline") {
+        case "thesis":
+        case "outline":
+          prompt = `Generate a presentation outline with these details:
+
+TOPIC: ${topic}
+AUDIENCE: ${audience || "General audience"}
+DURATION: ${duration || "10"} minutes
+KEY POINTS: ${
+            filteredKeyPoints.length > 0
+              ? filteredKeyPoints.join(", ")
+              : "Not specified"
+          }
+
+Generate a detailed, practical presentation outline.`;
+          break;
+
+        case "speech":
+          prompt = `Create a spoken presentation script based on this outline:
+
+PRESENTATION TOPIC: ${topic}
+TARGET AUDIENCE: ${audience || "General audience"}
+PRESENTATION DURATION: ${duration || "10"} minutes
+PRESENTATION OUTLINE:
+${previousContent || "No outline provided"}
+
+Create a natural, engaging spoken presentation script.`;
+          break;
+
+        case "slides":
+          prompt = `Create slide content based on this speech script:
+
+PRESENTATION TOPIC: ${topic}
+TARGET AUDIENCE: ${audience || "General audience"}
+SPEECH SCRIPT:
+${previousContent || "No speech script provided"}
+
+Create comprehensive slide content.`;
+          break;
+
+        default:
+          prompt = `Develop content for this presentation:
+
+TOPIC: ${topic}
+AUDIENCE: ${audience || "General audience"}
+DURATION: ${duration || "10"} minutes
+KEY POINTS: ${
+            filteredKeyPoints.length > 0
+              ? filteredKeyPoints.join(", ")
+              : "Not specified"
+          }
+
+Generate comprehensive presentation content.`;
+      }
+
+      // Create a streaming response
+      const stream = new ReadableStream({
+        async start(controller) {
+          try {
+            const agentStream = runAgentStream(prompt, stepType || "outline", language);
+            
+            let fullContent = "";
+            for await (const chunk of agentStream) {
+              fullContent += chunk;
+              controller.enqueue(`data: ${JSON.stringify({ chunk })}\n\n`);
+            }
+            
+            // Calculate tokens and duration
+            const actionDuration = Date.now() - actionStartTime;
+            const tokensUsed = Math.floor(fullContent.length / 4);
+            
+            // Update session if exists
+            if (sessionId) {
+              sessionStore.updateSession(sessionId, {
+                action: {
+                  id: actionId,
+                  type: "generate_presentation_stream",
+                  timestamp: new Date(),
+                  endpoint: "/api/generate-content",
+                  data: { topic, audience, duration, keyPoints: keyPoints || [] },
+                  result: { success: true, contentLength: fullContent.length },
+                  tokensUsed,
+                  duration: actionDuration,
+                },
+                metadata: {
+                  lastPresentationTopic: topic,
+                  lastGeneratedAt: new Date().toISOString(),
+                  totalTokensUsed:
+                    (sessionStore.getSession(sessionId)?.metadata?.totalTokensUsed ||
+                      0) + tokensUsed,
+                },
+              });
+            }
+            
+            // Send completion event
+            controller.enqueue(`data: ${JSON.stringify({ done: true, content: fullContent, tokensUsed, duration: actionDuration })}\n\n`);
+            controller.close();
+          } catch (error) {
+            console.error("Error in streaming:", error);
+            controller.enqueue(`data: ${JSON.stringify({ error: error instanceof Error ? error.message : "Failed to generate content" })}\n\n`);
+            controller.close();
+          }
+        },
+      });
+
+      return new Response(stream, {
+        headers: {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          'Connection': 'keep-alive',
+        },
+      });
+    }
+
+    // Non-streaming response (backward compatibility)
     await new Promise((resolve) => setTimeout(resolve, 1500));
 
     const content = await generatePresentationContent(
@@ -167,7 +242,7 @@ export async function POST(request: NextRequest) {
 
     // Update session with this action if session exists
     if (sessionId) {
-      session = sessionStore.updateSession(sessionId, {
+      sessionStore.updateSession(sessionId, {
         action: {
           id: actionId,
           type: "generate_presentation",

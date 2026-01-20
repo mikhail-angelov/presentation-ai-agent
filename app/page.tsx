@@ -128,78 +128,86 @@ export default function Home() {
           keyPoints: keyPoints.filter((kp) => kp.trim() !== ""),
           stepType: "outline",
           language: currentLanguage,
+          stream: true, // Enable streaming
         }),
       });
-      const data = await response.json();
-      const durationMs = Date.now() - startTime;
-      if (data.success) {
-        const content = data.content;
-        const metadata = data.metadata;
-        // Simulate streaming effect
-        let displayedContent = "";
-        const words = content.split(" ");
-        for (let i = 0; i < words.length; i++) {
-          await new Promise((resolve) => setTimeout(resolve, 30));
-          displayedContent += words[i] + " ";
-          setStreamingContent(displayedContent);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      if (!response.body) {
+        throw new Error("No response body");
+      }
+      
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let fullContent = "";
+      
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        
+        const chunk = decoder.decode(value);
+        const lines = chunk.split('\n');
+        
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              
+              if (data.chunk) {
+                // Stream chunk directly from LLM
+                fullContent += data.chunk;
+                setStreamingContent(fullContent);
+              }
+              
+              if (data.done) {
+                // Streaming completed
+                const durationMs = Date.now() - startTime;
+                // Update outline content
+                updateStepContent("outline", data.content || fullContent);
+                // Add to LLM requests
+                const newRequest: LLMRequest = {
+                  id: requestId,
+                  timestamp: new Date(),
+                  endpoint: "/api/generate-content",
+                  status: "success",
+                  tokensUsed: data.tokensUsed || Math.floor(fullContent.length / 4),
+                  duration: data.duration || durationMs,
+                };
+                addLLMRequest(newRequest);
+                // Track successful generation in session
+                trackAction(
+                  "generate_presentation_success",
+                  {
+                    topic,
+                    audience,
+                    duration,
+                  },
+                  {
+                    contentLength: fullContent.length,
+                    tokensUsed: data.tokensUsed || Math.floor(fullContent.length / 4),
+                    sessionId: data.sessionId,
+                    newSessionCreated: data.newSessionCreated,
+                  },
+                  data.tokensUsed || Math.floor(fullContent.length / 4),
+                  data.duration || durationMs
+                );
+                // Navigate to outline step after streaming completes
+                setTimeout(() => {
+                  navigateToStep("outline");
+                }, 500);
+              }
+              
+              if (data.error) {
+                throw new Error(data.error);
+              }
+            } catch (e) {
+              console.error("Error parsing SSE data:", e);
+            }
+          }
         }
-        // Update outline content
-        updateStepContent("outline", content);
-        // Add to LLM requests
-        const newRequest: LLMRequest = {
-          id: requestId,
-          timestamp: new Date(),
-          endpoint: "/api/generate-content",
-          status: "success",
-          tokensUsed: metadata.tokensUsed,
-          duration: durationMs,
-        };
-        addLLMRequest(newRequest);
-        // Track successful generation in session
-        trackAction(
-          "generate_presentation_success",
-          {
-            topic,
-            audience,
-            duration,
-          },
-          {
-            contentLength: content.length,
-            tokensUsed: metadata.tokensUsed,
-            sessionId: metadata.sessionId,
-            newSessionCreated: metadata.newSessionCreated,
-          },
-          metadata.tokensUsed,
-          durationMs
-        );
-        // Navigate to outline step after streaming completes
-        setTimeout(() => {
-          navigateToStep("outline");
-        }, 500);
-      } else {
-        // Track failed generation in session
-        trackAction(
-          "generate_presentation_error",
-          {
-            topic,
-            audience,
-          },
-          {
-            error: data.error,
-          },
-          undefined,
-          durationMs
-        );
-        const errorRequest: LLMRequest = {
-          id: requestId,
-          timestamp: new Date(),
-          endpoint: "/api/generate-content",
-          status: "error",
-          tokensUsed: 0,
-          duration: durationMs,
-        };
-        addLLMRequest(errorRequest);
-        alert(`Error: ${data.error || "Failed to generate content"}`);
       }
     } catch (error) {
       const durationMs = Date.now() - startTime;
@@ -233,11 +241,11 @@ export default function Home() {
 
   // Step 2: Generate Speech from Outline
   const handleGenerateSpeech = async () => {
-    setIsGenerating(true);
-    setStreamingContent("");
-
     const { topic, audience, duration } = stepContents.setup;
     const outline = stepContents.outline;
+    
+    setIsGenerating(true);
+    setStreamingContent("");
 
     const startTime = Date.now();
     const requestId = Math.random().toString(36).substr(2, 9);
@@ -261,63 +269,108 @@ export default function Home() {
           stepType: "speech",
           previousContent: outline,
           language: currentLanguage,
+          stream: true, // Enable streaming
         }),
       });
-
-      const data = await response.json();
-      const durationMs = Date.now() - startTime;
-
-      if (data.success) {
-        const content = data.content;
-        const metadata = data.metadata;
-
-        // Simulate streaming effect
-        let displayedContent = "";
-        const words = content.split(" ");
-        for (let i = 0; i < words.length; i++) {
-          await new Promise((resolve) => setTimeout(resolve, 30));
-          displayedContent += words[i] + " ";
-          setStreamingContent(displayedContent);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      if (!response.body) {
+        throw new Error("No response body");
+      }
+      
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let fullContent = "";
+      
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        
+        const chunk = decoder.decode(value);
+        const lines = chunk.split('\n');
+        
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              
+              if (data.chunk) {
+                // Stream chunk directly from LLM
+                fullContent += data.chunk;
+                setStreamingContent(fullContent);
+              }
+              
+              if (data.done) {
+                // Streaming completed
+                const durationMs = Date.now() - startTime;
+                // Update speech content
+                updateStepContent("speech", data.content || fullContent);
+                // Add to LLM requests
+                const newRequest: LLMRequest = {
+                  id: requestId,
+                  timestamp: new Date(),
+                  endpoint: "/api/generate-content",
+                  status: "success",
+                  tokensUsed: data.tokensUsed || Math.floor(fullContent.length / 4),
+                  duration: data.duration || durationMs,
+                };
+                addLLMRequest(newRequest);
+                // Track successful generation in session
+                trackAction(
+                  "generate_speech_success",
+                  {
+                    topic,
+                    outlineLength: outline.length,
+                  },
+                  {
+                    contentLength: fullContent.length,
+                    tokensUsed: data.tokensUsed || Math.floor(fullContent.length / 4),
+                  },
+                  data.tokensUsed || Math.floor(fullContent.length / 4),
+                  data.duration || durationMs
+                );
+                // Navigate to speech step after streaming completes
+                setTimeout(() => {
+                  navigateToStep("speech");
+                }, 500);
+              }
+              
+              if (data.error) {
+                throw new Error(data.error);
+              }
+            } catch (e) {
+              console.error("Error parsing SSE data:", e);
+            }
+          }
         }
-
-        // Update speech content
-        updateStepContent("speech", content);
-
-        // Add to LLM requests
-        const newRequest: LLMRequest = {
-          id: requestId,
-          timestamp: new Date(),
-          endpoint: "/api/generate-content",
-          status: "success",
-          tokensUsed: metadata.tokensUsed,
-          duration: durationMs,
-        };
-        addLLMRequest(newRequest);
-
-        // Track successful generation in session
-        trackAction(
-          "generate_speech_success",
-          {
-            topic,
-            outlineLength: outline.length,
-          },
-          {
-            contentLength: content.length,
-            tokensUsed: metadata.tokensUsed,
-          },
-          metadata.tokensUsed,
-          durationMs
-        );
-
-        // Navigate to speech step after streaming completes
-        setTimeout(() => {
-          navigateToStep("speech");
-        }, 500);
-      } else {
-        alert(`Error: ${data.error || "Failed to generate speech"}`);
       }
     } catch (error) {
+      const durationMs = Date.now() - startTime;
       console.error("Error generating speech:", error);
+      // Track network error in session
+      trackAction(
+        "generate_speech_network_error",
+        {
+          topic,
+        },
+        {
+          error: error instanceof Error ? error.message : "Unknown error",
+        },
+        undefined,
+        durationMs
+      );
+      const errorRequest: LLMRequest = {
+        id: requestId,
+        timestamp: new Date(),
+        endpoint: "/api/generate-content",
+        status: "error",
+        tokensUsed: 0,
+        duration: durationMs,
+      };
+      addLLMRequest(errorRequest);
       alert("Failed to connect to AI service. Please try again.");
     } finally {
       setIsGenerating(false);
@@ -326,11 +379,11 @@ export default function Home() {
 
   // Step 3: Generate Slides from Speech
   const handleGenerateSlides = async () => {
-    setIsGenerating(true);
-    setStreamingContent("");
-
     const { topic, audience, duration } = stepContents.setup;
     const speech = stepContents.speech;
+    
+    setIsGenerating(true);
+    setStreamingContent("");
 
     const startTime = Date.now();
     const requestId = Math.random().toString(36).substr(2, 9);
@@ -354,63 +407,108 @@ export default function Home() {
           stepType: "slides",
           previousContent: speech,
           language: currentLanguage,
+          stream: true, // Enable streaming
         }),
       });
-
-      const data = await response.json();
-      const durationMs = Date.now() - startTime;
-
-      if (data.success) {
-        const content = data.content;
-        const metadata = data.metadata;
-
-        // Simulate streaming effect
-        let displayedContent = "";
-        const words = content.split(" ");
-        for (let i = 0; i < words.length; i++) {
-          await new Promise((resolve) => setTimeout(resolve, 30));
-          displayedContent += words[i] + " ";
-          setStreamingContent(displayedContent);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      if (!response.body) {
+        throw new Error("No response body");
+      }
+      
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let fullContent = "";
+      
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        
+        const chunk = decoder.decode(value);
+        const lines = chunk.split('\n');
+        
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              
+              if (data.chunk) {
+                // Stream chunk directly from LLM
+                fullContent += data.chunk;
+                setStreamingContent(fullContent);
+              }
+              
+              if (data.done) {
+                // Streaming completed
+                const durationMs = Date.now() - startTime;
+                // Update slides content
+                updateStepContent("slides", data.content || fullContent);
+                // Add to LLM requests
+                const newRequest: LLMRequest = {
+                  id: requestId,
+                  timestamp: new Date(),
+                  endpoint: "/api/generate-content",
+                  status: "success",
+                  tokensUsed: data.tokensUsed || Math.floor(fullContent.length / 4),
+                  duration: data.duration || durationMs,
+                };
+                addLLMRequest(newRequest);
+                // Track successful generation in session
+                trackAction(
+                  "generate_slides_success",
+                  {
+                    topic,
+                    speechLength: speech.length,
+                  },
+                  {
+                    contentLength: fullContent.length,
+                    tokensUsed: data.tokensUsed || Math.floor(fullContent.length / 4),
+                  },
+                  data.tokensUsed || Math.floor(fullContent.length / 4),
+                  data.duration || durationMs
+                );
+                // Navigate to slides step after streaming completes
+                setTimeout(() => {
+                  navigateToStep("slides");
+                }, 500);
+              }
+              
+              if (data.error) {
+                throw new Error(data.error);
+              }
+            } catch (e) {
+              console.error("Error parsing SSE data:", e);
+            }
+          }
         }
-
-        // Update slides content
-        updateStepContent("slides", content);
-
-        // Add to LLM requests
-        const newRequest: LLMRequest = {
-          id: requestId,
-          timestamp: new Date(),
-          endpoint: "/api/generate-content",
-          status: "success",
-          tokensUsed: metadata.tokensUsed,
-          duration: durationMs,
-        };
-        addLLMRequest(newRequest);
-
-        // Track successful generation in session
-        trackAction(
-          "generate_slides_success",
-          {
-            topic,
-            speechLength: speech.length,
-          },
-          {
-            contentLength: content.length,
-            tokensUsed: metadata.tokensUsed,
-          },
-          metadata.tokensUsed,
-          durationMs
-        );
-
-        // Navigate to slides step after streaming completes
-        setTimeout(() => {
-          navigateToStep("slides");
-        }, 500);
-      } else {
-        alert(`Error: ${data.error || "Failed to generate slides"}`);
       }
     } catch (error) {
+      const durationMs = Date.now() - startTime;
       console.error("Error generating slides:", error);
+      // Track network error in session
+      trackAction(
+        "generate_slides_network_error",
+        {
+          topic,
+        },
+        {
+          error: error instanceof Error ? error.message : "Unknown error",
+        },
+        undefined,
+        durationMs
+      );
+      const errorRequest: LLMRequest = {
+        id: requestId,
+        timestamp: new Date(),
+        endpoint: "/api/generate-content",
+        status: "error",
+        tokensUsed: 0,
+        duration: durationMs,
+      };
+      addLLMRequest(errorRequest);
       alert("Failed to connect to AI service. Please try again.");
     } finally {
       setIsGenerating(false);
