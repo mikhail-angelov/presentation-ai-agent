@@ -1,12 +1,3 @@
-export type PresentationStep = {
-  id: number;
-  title: string;
-  description: string;
-  icon: React.ReactNode;
-  completed: boolean;
-  tips: string[];
-};
-
 export type LLMRequest = {
   id: string;
   timestamp: Date;

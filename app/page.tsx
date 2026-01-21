@@ -13,25 +13,16 @@ import AIUsageMonitoring from "./components/monitoring/AIUsageMonitoring";
 import { LLMRequest, RateLimit } from "./types";
 import { useSession } from "./hooks/useSession";
 import { useTranslation } from "./hooks/useTranslation";
+import { StepContent, StepType } from "./types/steps";
+import { useToast } from "./contexts/ToastContext";
 
 // Define step types
-type StepType = "setup" | "outline" | "speech" | "slides";
 
-interface StepContent {
-  setup: {
-    topic: string;
-    audience: string;
-    duration: string;
-    keyPoints: string[];
-  };
-  outline: string;
-  speech: string;
-  slides: string;
-}
 
 export default function Home() {
   const { session, trackAction } = useSession();
   const { currentLanguage, isLoading } = useTranslation();
+  const { addToast } = useToast();
 
   // Step management
   const [activeStep, setActiveStep] = useState<StepType>("setup");
@@ -94,7 +85,7 @@ export default function Home() {
 
   const handleCopyContent = (content: string) => {
     navigator.clipboard.writeText(content);
-    alert("Content copied to clipboard!");
+    addToast("Content copied to clipboard!", "success");
   };
 
   // Save presentation data to JSON file
@@ -171,10 +162,10 @@ export default function Home() {
         timestamp: data.timestamp || "unknown",
       });
 
-      alert("Presentation loaded successfully! Starting from setup step.");
+      addToast("Presentation loaded successfully! Starting from setup step.", "success");
     } catch (error) {
       console.error("Error loading presentation:", error);
-      alert(`Failed to load presentation: ${error instanceof Error ? error.message : "Invalid file format"}`);
+      addToast(`Failed to load presentation: ${error instanceof Error ? error.message : "Invalid file format"}`, "error");
     }
   };
 
@@ -182,7 +173,7 @@ export default function Home() {
   const handleGenerateOutline = async () => {
     const { topic, audience, duration, keyPoints } = stepContents.setup;
     if (!topic.trim()) {
-      alert("Please enter a presentation topic first.");
+      addToast("Please enter a presentation topic first.", "warning");
       return;
     }
     setIsGenerating(true);
@@ -314,7 +305,7 @@ export default function Home() {
         duration: durationMs,
       };
       addLLMRequest(errorRequest);
-      alert("Failed to connect to AI service. Please try again.");
+      addToast("Failed to connect to AI service. Please try again.", "error");
     } finally {
       setIsGenerating(false);
     }
@@ -452,7 +443,7 @@ export default function Home() {
         duration: durationMs,
       };
       addLLMRequest(errorRequest);
-      alert("Failed to connect to AI service. Please try again.");
+      addToast("Failed to connect to AI service. Please try again.", "error");
     } finally {
       setIsGenerating(false);
     }
@@ -590,14 +581,14 @@ export default function Home() {
         duration: durationMs,
       };
       addLLMRequest(errorRequest);
-      alert("Failed to connect to AI service. Please try again.");
+      addToast("Failed to connect to AI service. Please try again.", "error");
     } finally {
       setIsGenerating(false);
     }
   };
 
   const handleCompletePresentation = () => {
-    alert("Slides completed! Your presentation is ready.");
+    addToast("Slides completed! Your presentation is ready.", "success");
   };
 
   // Track initial page load in session
@@ -715,34 +706,11 @@ export default function Home() {
           {/* Right Column - Step-by-Step Flow & API Monitoring */}
           <div className="space-y-6 md:space-y-8">
             <PreparationSteps
-              currentStep={
-                ["setup", "outline", "speech", "slides"].indexOf(activeStep) + 1
-              }
-              onPreviousStep={() => {
-                const steps = [
-                  "setup",
-                  "outline",
-                  "speech",
-                  "slides",
-                ] as StepType[];
-                const currentIndex = steps.indexOf(activeStep);
-                if (currentIndex > 0) {
-                  navigateToStep(steps[currentIndex - 1]);
-                }
-              }}
-              onNextStep={() => {
-                const steps = [
-                  "setup",
-                  "outline",
-                  "speech",
-                  "slides",
-                ] as StepType[];
-                const currentIndex = steps.indexOf(activeStep);
-                if (
-                  currentIndex < steps.length - 1 &&
-                  stepHistory.includes(steps[currentIndex + 1])
-                ) {
-                  navigateToStep(steps[currentIndex + 1]);
+              currentStep={activeStep}
+              stepHistory={stepHistory}
+              onStepClick={(step: StepType) => {
+                if (step && stepHistory.includes(step)) {
+                  navigateToStep(step);
                 }
               }}
             />
