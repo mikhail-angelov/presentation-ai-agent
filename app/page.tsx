@@ -15,9 +15,7 @@ import { useSession } from "./hooks/useSession";
 import { useTranslation } from "./hooks/useTranslation";
 import { StepContent, StepType } from "./types/steps";
 import { useToast } from "./contexts/ToastContext";
-
-// Define step types
-
+import SlidesPreviewModal from "./components/shared/SlidesPreviewModal";
 
 export default function Home() {
   const { session, trackAction } = useSession();
@@ -48,6 +46,9 @@ export default function Home() {
   });
   const [isGenerating, setIsGenerating] = useState(false);
   const [streamingContent, setStreamingContent] = useState("");
+  // Modal state for slides preview
+  const [showSlidesModal, setShowSlidesModal] = useState(false);
+  const [generatedSlidesHTML, setGeneratedSlidesHTML] = useState<string>("");
 
   // Helper functions
   const addLLMRequest = (request: LLMRequest) => {
@@ -200,7 +201,6 @@ export default function Home() {
           keyPoints: keyPoints.filter((kp) => kp.trim() !== ""),
           stepType: "outline",
           language: currentLanguage,
-          stream: true, // Enable streaming
         }),
       });
       
@@ -341,7 +341,6 @@ export default function Home() {
           stepType: "speech",
           previousContent: outline,
           language: currentLanguage,
-          stream: true, // Enable streaming
         }),
       });
       
@@ -479,7 +478,6 @@ export default function Home() {
           stepType: "slides",
           previousContent: speech,
           language: currentLanguage,
-          stream: true, // Enable streaming
         }),
       });
       
@@ -587,9 +585,101 @@ export default function Home() {
     }
   };
 
-  const handleCompletePresentation = () => {
-    addToast("Slides completed! Your presentation is ready.", "success");
+  const handleCompletePresentation = async () => {
+    try {
+      setIsGenerating(true);
+      setStreamingContent("");
+      addToast("Generating professional slides...", "info");
+      
+      const { topic, audience, duration } = stepContents.setup;
+      const slidesContent = stepContents.slides;
+      
+      // Generate HTML slides using LLM with streaming
+      const response = await fetch("/api/generate-slides-stream", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          topic,
+          audience,
+          duration,
+          slidesContent,
+          language: currentLanguage,
+        }),
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      if (!response.body) {
+        throw new Error("No response body");
+      }
+      
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let fullContent = "";
+      
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        
+        const chunk = decoder.decode(value);
+        const lines = chunk.split('\n');
+        
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              
+              if (data.chunk) {
+                // Stream chunk directly from LLM
+                fullContent += data.chunk;
+                setStreamingContent(fullContent);
+              }
+              
+              if (data.done) {
+                // Streaming completed
+                // Store HTML and show modal
+                setGeneratedSlidesHTML(data.content || fullContent);
+                setShowSlidesModal(true);
+                
+                // Track successful generation
+                trackAction("generate_slides_html_stream_success", {
+                  topic,
+                  htmlLength: (data.content || fullContent).length,
+                  tokensUsed: data.tokensUsed,
+                  duration: data.duration,
+                });
+                
+                addToast("Slides generated successfully! Preview and download as PDF.", "success");
+              }
+              
+              if (data.error) {
+                throw new Error(data.error);
+              }
+            } catch (e) {
+              console.error("Error parsing SSE data:", e);
+            }
+          }
+        }
+      }
+      
+    } catch (error) {
+      console.error("Error generating slides:", error);
+      addToast(`Failed to generate slides: ${error instanceof Error ? error.message : "Unknown error"}`, "error");
+      
+      // Track error
+      trackAction("generate_slides_html_stream_error", {
+        topic: stepContents.setup.topic,
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+    } finally {
+      setIsGenerating(false);
+    }
   };
+
 
   // Track initial page load in session
   useEffect(() => {
@@ -723,6 +813,13 @@ export default function Home() {
           </div>
         </div>
       </div>
+
+      {showSlidesModal&& <SlidesPreviewModal
+        onClose={() => setShowSlidesModal(false)}
+        htmlContent={generatedSlidesHTML}
+        isGeneratingPDF={isGenerating}
+        topic={stepContents.setup.topic}
+      />}
     </div>
   );
 }

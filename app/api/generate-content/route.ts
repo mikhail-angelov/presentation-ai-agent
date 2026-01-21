@@ -1,91 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sessionStore } from "@/app/lib/session/store";
 import { SESSION_COOKIE_NAME } from "@/app/types/session";
-import { runAgent, runAgentStream } from "@/app/lib/agent/deepseekAgent";
-
-// AI response generator for presentation content using DeepSeek agent
-async function generatePresentationContent(
-  topic: string,
-  audience: string,
-  duration: string,
-  keyPoints: string[],
-  stepType: string = "outline",
-  previousContent?: string,
-  language: string = "en"
-): Promise<string> {
-  const filteredKeyPoints = keyPoints.filter((kp) => kp.trim() !== "");
-
-  let prompt = "";
-  
-  switch (stepType) {
-    case "thesis":
-    case "outline":
-      prompt = `Generate a presentation outline with these details:
-
-TOPIC: ${topic}
-AUDIENCE: ${audience || "General audience"}
-DURATION: ${duration} minutes
-KEY POINTS: ${
-        filteredKeyPoints.length > 0
-          ? filteredKeyPoints.join(", ")
-          : "Not specified"
-      }
-
-Generate a detailed, practical presentation outline.`;
-      break;
-
-    case "speech":
-      prompt = `Create a spoken presentation script based on this outline:
-
-PRESENTATION TOPIC: ${topic}
-TARGET AUDIENCE: ${audience || "General audience"}
-PRESENTATION DURATION: ${duration} minutes
-PRESENTATION OUTLINE:
-${previousContent || "No outline provided"}
-
-Create a natural, engaging spoken presentation script.`;
-      break;
-
-    case "slides":
-      prompt = `Create slide content based on this speech script:
-
-PRESENTATION TOPIC: ${topic}
-TARGET AUDIENCE: ${audience || "General audience"}
-SPEECH SCRIPT:
-${previousContent || "No speech script provided"}
-
-Create comprehensive slide content.`;
-      break;
-
-    default:
-      prompt = `Develop content for this presentation:
-
-TOPIC: ${topic}
-AUDIENCE: ${audience || "General audience"}
-DURATION: ${duration} minutes
-KEY POINTS: ${
-        filteredKeyPoints.length > 0
-          ? filteredKeyPoints.join(", ")
-          : "Not specified"
-      }
-
-Generate comprehensive presentation content.`;
-  }
-
-  try {
-    const content = await runAgent(prompt, stepType, language);
-    return content;
-  } catch (error) {
-    console.error("Error generating content with DeepSeek agent:", error);
-    throw new Error("Failed to generate presentation content");
-  }
-}
+import { runAgentStream } from "@/app/lib/agent/deepseekAgent";
 
 // Streaming endpoint for real-time LLM feedback
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { topic, audience, duration, keyPoints, stepType, previousContent, language = "en", stream = false } = body;
+    const { topic, audience, duration, keyPoints, stepType, previousContent, language = "en" } = body;
 
     if (!topic) {
       return NextResponse.json(
@@ -103,8 +25,7 @@ export async function POST(request: NextRequest) {
       .toString(36)
       .substr(2, 9)}`;
 
-    // If streaming is requested, return a streaming response
-    if (stream) {
+
       const filteredKeyPoints = (keyPoints || []).filter((kp: string) => kp.trim() !== "");
       
       let prompt = "";
@@ -220,121 +141,7 @@ Generate comprehensive presentation content.`;
           'Connection': 'keep-alive',
         },
       });
-    }
 
-    // Non-streaming response (backward compatibility)
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-
-    const content = await generatePresentationContent(
-      topic,
-      audience || "",
-      duration || "10",
-      keyPoints || [],
-      stepType || "outline",
-      previousContent,
-      language
-    );
-
-    // Calculate processing time and token usage
-    const actionDuration = Date.now() - actionStartTime;
-    const tokensUsed =
-      Math.floor(content.length / 4) + Math.floor(Math.random() * 100);
-
-    // Update session with this action if session exists
-    if (sessionId) {
-      sessionStore.updateSession(sessionId, {
-        action: {
-          id: actionId,
-          type: "generate_presentation",
-          timestamp: new Date(),
-          endpoint: "/api/generate-content",
-          data: { topic, audience, duration, keyPoints: keyPoints || [] },
-          result: { success: true, contentLength: content.length },
-          tokensUsed,
-          duration: actionDuration,
-        },
-        metadata: {
-          lastPresentationTopic: topic,
-          lastGeneratedAt: new Date().toISOString(),
-          totalTokensUsed:
-            (sessionStore.getSession(sessionId)?.metadata?.totalTokensUsed ||
-              0) + tokensUsed,
-        },
-      });
-    }
-
-    // Prepare response data
-    const metadata: any = {
-      topic,
-      audience: audience || "Not specified",
-      duration: duration || "10",
-      keyPoints: (keyPoints || []).filter((kp: string) => kp.trim() !== ""),
-      generatedAt: new Date().toISOString(),
-      tokensUsed,
-      estimatedReadingTime: `${Math.ceil(
-        content.split(" ").length / 200
-      )} minutes`,
-      sessionId,
-      actionId,
-    };
-
-    // If no session exists, create one for new users
-    if (!sessionId) {
-      const clientIp =
-        request.headers.get("x-forwarded-for") ||
-        request.headers.get("x-real-ip");
-      const clientUserAgent = request.headers.get("user-agent");
-
-      const newSession = sessionStore.createSession({
-        userAgent: clientUserAgent || undefined,
-        ipAddress: clientIp || undefined,
-        metadata: {
-          firstAction: "generate_presentation",
-          firstTopic: topic,
-          totalTokensUsed: tokensUsed,
-        },
-      });
-
-      // Add the action to the new session
-      sessionStore.updateSession(newSession.id, {
-        action: {
-          id: actionId,
-          type: "generate_presentation",
-          timestamp: new Date(),
-          endpoint: "/api/generate-content",
-          data: { topic, audience, duration, keyPoints: keyPoints || [] },
-          result: { success: true, contentLength: content.length },
-          tokensUsed,
-          duration: actionDuration,
-        },
-      });
-
-      metadata.sessionId = newSession.id;
-      metadata.newSessionCreated = true;
-
-      // Set session cookie in response
-      const response = NextResponse.json({
-        success: true,
-        content,
-        metadata,
-      });
-      response.cookies.set({
-        name: SESSION_COOKIE_NAME,
-        value: newSession.id,
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
-        maxAge: 24 * 60 * 60,
-        path: "/",
-      });
-      return response;
-    }
-
-    return NextResponse.json({
-      success: true,
-      content,
-      metadata,
-    });
   } catch (error) {
     console.error("Error generating content:", error);
 
