@@ -1,7 +1,7 @@
 {
   "app": {
-    "title": "Prez AI",
-    "subtitle": "AI-Powered Presentation Creator",
+    "title": "Presentation Master",
+    "subtitle": "AI-Powered tool",
     "loading": "Loading...",
     "error": "Error",
     "success": "Success",
@@ -47,5 +47,10 @@
     "stepOf": "Step {current} of {total}",
     "previous": "Previous",
     "continue": "Continue"
+  },
+  "menu": {
+    "savePresentation": "Save Presentation",
+    "loadPresentation": "Load Presentation",
+    "menu": "Menu"
   }
 }

@@ -1,6 +1,6 @@
 {
   "app": {
-    "title": "Prez AI",
+    "title": "Мастер презентаций",
     "subtitle": "Создание презентаций с помощью ИИ",
     "loading": "Загрузка...",
     "error": "Ошибка",
@@ -47,5 +47,10 @@
     "stepOf": "Шаг {current} из {total}",
     "previous": "Назад",
     "continue": "Продолжить"
+  },
+  "menu": {
+    "savePresentation": "Сохранить презентацию",
+    "loadPresentation": "Загрузить презентацию",
+    "menu": "Меню"
   }
 }

@@ -97,6 +97,87 @@ export default function Home() {
     alert("Content copied to clipboard!");
   };
 
+  // Save presentation data to JSON file
+  const handleSavePresentation = () => {
+    // Save only stepContents as requested
+    const saveData = {
+      stepContents,
+      timestamp: new Date().toISOString(),
+      version: "1.0",
+      appName: "Prez AI",
+    };
+
+    const jsonString = JSON.stringify(saveData, null, 2);
+    const element = document.createElement("a");
+    const file = new Blob([jsonString], { type: "application/json" });
+    element.href = URL.createObjectURL(file);
+    
+    // Create filename with timestamp
+    const timestamp = new Date().toISOString().split('T')[0];
+    const topic = stepContents.setup.topic || "presentation";
+    const filename = `prez-ai-${topic.replace(/\s+/g, '-').toLowerCase()}-${timestamp}.json`;
+    
+    element.download = filename;
+    document.body.appendChild(element);
+    element.click();
+    document.body.removeChild(element);
+
+    // Track save action
+    trackAction("save_presentation", {
+      topic: stepContents.setup.topic,
+      filename,
+    });
+  };
+
+  // Load presentation data from JSON file
+  const handleLoadPresentation = (data: any) => {
+    try {
+      // Validate loaded data
+      if (!data.stepContents || typeof data.stepContents !== 'object') {
+        throw new Error("Invalid save file: missing stepContents");
+      }
+
+      // Update step contents
+      setStepContents(data.stepContents);
+      
+      // Recompose stepHistory based on stepContents
+      const newStepHistory: StepType[] = ["setup"]; // Always start with setup
+      
+      // Check which steps have content and add them to history in order
+      const steps: StepType[] = ["setup", "outline", "speech", "slides"];
+      
+      for (const step of steps) {
+        if (step === "setup") continue; // Already added
+        const content = data.stepContents[step];
+        // Check if content exists and is not empty
+        if (content && 
+            (typeof content === 'string' ? content.trim() !== '' : 
+             Array.isArray(content) ? content.length > 0 : 
+             Object.keys(content).length > 0)) {
+          if (!newStepHistory.includes(step)) {
+            newStepHistory.push(step);
+          }
+        }
+      }
+      
+      setStepHistory(newStepHistory);
+      
+      // Always set activeStep as "setup" after loading
+      setActiveStep("setup");
+
+      // Track load action
+      trackAction("load_presentation", {
+        topic: data.stepContents?.setup?.topic || "unknown",
+        timestamp: data.timestamp || "unknown",
+      });
+
+      alert("Presentation loaded successfully! Starting from setup step.");
+    } catch (error) {
+      console.error("Error loading presentation:", error);
+      alert(`Failed to load presentation: ${error instanceof Error ? error.message : "Invalid file format"}`);
+    }
+  };
+
   // Step 1: Generate Outline
   const handleGenerateOutline = async () => {
     const { topic, audience, duration, keyPoints } = stepContents.setup;
@@ -614,7 +695,10 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 p-4 md:p-8">
       <div className="max-w-7xl mx-auto">
-        <Header session={session} />
+        <Header 
+          onSave={handleSavePresentation}
+          onLoad={handleLoadPresentation}
+        />
 
         <StreamingDisplay
           isGenerating={isGenerating}
