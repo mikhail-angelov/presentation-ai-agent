@@ -46,6 +46,7 @@ export default function Home() {
   });
   const [isGenerating, setIsGenerating] = useState(false);
   const [streamingContent, setStreamingContent] = useState("");
+  const [abortController, setAbortController] = useState<AbortController | null>(null);
   // Modal state for slides preview
   const [showSlidesModal, setShowSlidesModal] = useState(false);
   const [generatedSlidesHTML, setGeneratedSlidesHTML] = useState<string>("");
@@ -71,6 +72,21 @@ export default function Home() {
       ...prev,
       [step]: content,
     }));
+  };
+
+  // Cancel generation function
+  const handleCancelGeneration = () => {
+    if (abortController) {
+      abortController.abort();
+      setAbortController(null);
+    }
+    setIsGenerating(false);
+    setStreamingContent("");
+    addToast("Generation cancelled.", "info");
+    trackAction("cancel_generation", {
+      step: activeStep,
+      topic: stepContents.setup.topic,
+    });
   };
 
   // Helper functions for content actions
@@ -179,6 +195,11 @@ export default function Home() {
     }
     setIsGenerating(true);
     setStreamingContent("");
+    
+    // Create abort controller for cancellation
+    const controller = new AbortController();
+    setAbortController(controller);
+    
     trackAction("start_presentation", {
       topic,
       audience,
@@ -194,6 +215,7 @@ export default function Home() {
           "Content-Type": "application/json",
         },
         credentials: "include",
+        signal: controller.signal,
         body: JSON.stringify({
           topic,
           audience,
@@ -318,6 +340,10 @@ export default function Home() {
     
     setIsGenerating(true);
     setStreamingContent("");
+    
+    // Create abort controller for cancellation
+    const controller = new AbortController();
+    setAbortController(controller);
 
     const startTime = Date.now();
     const requestId = Math.random().toString(36).substr(2, 9);
@@ -329,6 +355,7 @@ export default function Home() {
           "Content-Type": "application/json",
         },
         credentials: "include",
+        signal: controller.signal,
         body: JSON.stringify({
           topic,
           audience,
@@ -455,6 +482,10 @@ export default function Home() {
     
     setIsGenerating(true);
     setStreamingContent("");
+    
+    // Create abort controller for cancellation
+    const controller = new AbortController();
+    setAbortController(controller);
 
     const startTime = Date.now();
     const requestId = Math.random().toString(36).substr(2, 9);
@@ -466,6 +497,7 @@ export default function Home() {
           "Content-Type": "application/json",
         },
         credentials: "include",
+        signal: controller.signal,
         body: JSON.stringify({
           topic,
           audience,
@@ -594,12 +626,17 @@ export default function Home() {
       const { topic, audience, duration } = stepContents.setup;
       const slidesContent = stepContents.slides;
       
+      // Create abort controller for cancellation
+      const controller = new AbortController();
+      setAbortController(controller);
+      
       // Generate HTML slides using LLM with streaming
       const response = await fetch("/api/generate-slides-stream", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
+        signal: controller.signal,
         body: JSON.stringify({
           topic,
           audience,
@@ -784,6 +821,7 @@ export default function Home() {
         <StreamingDisplay
           isGenerating={isGenerating}
           streamingContent={streamingContent}
+          onCancel={handleCancelGeneration}
         />
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
@@ -817,7 +855,6 @@ export default function Home() {
       {showSlidesModal&& <SlidesPreviewModal
         onClose={() => setShowSlidesModal(false)}
         htmlContent={generatedSlidesHTML}
-        isGeneratingPDF={isGenerating}
         topic={stepContents.setup.topic}
       />}
     </div>

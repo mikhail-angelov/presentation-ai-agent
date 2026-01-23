@@ -5,11 +5,13 @@ import { useEffect, useRef } from "react";
 interface StreamingDisplayProps {
   isGenerating: boolean;
   streamingContent: string;
+  onCancel?: () => void;
 }
 
 export default function StreamingDisplay({
   isGenerating,
   streamingContent,
+  onCancel,
 }: StreamingDisplayProps) {
   const contentRef = useRef<HTMLDivElement>(null);
   const prevContentLengthRef = useRef(0);
@@ -73,8 +75,18 @@ export default function StreamingDisplay({
           </pre>
         </div>
       </div>
-      <div className="mt-4 text-sm text-gray-500">
-        <p>Please wait while our AI creates a comprehensive presentation plan for you.</p>
+      <div className="mt-4 flex items-center justify-between">
+        <p className="text-sm text-gray-500">
+          Please wait while our AI creates a comprehensive presentation plan for you.
+        </p>
+        {onCancel && (
+          <button
+            onClick={onCancel}
+            className="px-4 py-2 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors duration-200"
+          >
+            Cancel Generation
+          </button>
+        )}
       </div>
     </div>
   );
