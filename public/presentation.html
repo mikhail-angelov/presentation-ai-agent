@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Example Presentation - AI Generated</title>
+    <style>
+        /* Minimal CSS for presentation */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #f8f9fa;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .slides-container {
+            position: relative;
+            width: 100%;
+            height: 100vh;
+        }
+        
+        .slide {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            padding: 60px 80px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.5s ease, visibility 0.5s ease;
+            overflow-y: auto;
+        }
+        
+        .slide.active {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        .slide-title {
+            font-size: 3.5rem;
+            font-weight: 700;
+            color: #2c3e50;
+            margin-bottom: 1.5rem;
+            line-height: 1.2;
+        }
+        
+        .slide-subtitle {
+            font-size: 1.8rem;
+            color: #7f8c8d;
+            font-weight: 400;
+            margin-bottom: 2rem;
+        }
+        
+        .content-block {
+            max-width: 800px;
+            margin: 0 auto;
+            text-align: left;
+        }
+        
+        .content-title {
+            font-size: 2.2rem;
+            color: #3498db;
+            margin-bottom: 1.5rem;
+            font-weight: 600;
+        }
+        
+        .points-list {
+            list-style: none;
+            margin: 2rem 0;
+        }
+        
+        .points-list li {
+            font-size: 1.4rem;
+            margin-bottom: 1rem;
+            padding-left: 2rem;
+            position: relative;
+        }
+        
+        .points-list li:before {
+            content: "•";
+            color: #3498db;
+            font-size: 2rem;
+            position: absolute;
+            left: 0;
+            top: -0.3rem;
+        }
+        
+        .diagram {
+            width: 100%;
+            max-width: 600px;
+            margin: 2rem auto;
+            padding: 2rem;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        
+        .diagram-title {
+            font-size: 1.5rem;
+            color: #2c3e50;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+        
+        .diagram-content {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 2rem;
+            flex-wrap: wrap;
+        }
+        
+        .circle {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            background: #3498db;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 1.2rem;
+        }
+        
+        .rectangle {
+            width: 150px;
+            height: 80px;
+            background: #2ecc71;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 1.2rem;
+        }
+        
+        .line {
+            width: 80px;
+            height: 4px;
+            background: #e74c3c;
+        }
+        
+        .image-placeholder {
+            width: 100%;
+            max-width: 500px;
+            height: 300px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 12px;
+            margin: 2rem auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+        
+        .slide-number {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            color: #95a5a6;
+            font-size: 1rem;
+        }
+        
+        /* First slide specific styles */
+        .first-slide {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .first-slide .slide-title {
+            color: white;
+            font-size: 4rem;
+        }
+        
+        .first-slide .slide-subtitle {
+            color: rgba(255,255,255,0.9);
+        }
+        
+        /* Last slide specific styles */
+        .last-slide {
+            background: #2c3e50;
+            color: white;
+        }
+        
+        .last-slide .slide-title {
+            color: white;
+        }
+        
+        .last-slide .thank-you {
+            font-size: 2.5rem;
+            color: #3498db;
+            margin-top: 2rem;
+        }
+        
+        /* Navigation controls */
+        .nav-controls {
+            position: fixed;
+            bottom: 10px;
+            left: 0;
+            right: 0;
+            display: flex;
+            gap: 20px;
+            z-index: 100;
+        }
+        
+        .nav-button {
+            background: rgba(255, 255, 255, 0.9);
+            border: 2px solid #3498db;
+            color: #3498db;
+            padding: 12px 24px;
+            border-radius: 50px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        
+        .nav-button:hover {
+            background: #3498db;
+            color: white;
+            transform: translateY(-2px);
+        }
+        
+        .nav-button:active {
+            transform: translateY(0);
+        }
+        
+        .nav-info {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            z-index: 100;
+        }
+        
+        /* Progress bar */
+        .progress-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: rgba(52, 152, 219, 0.2);
+            z-index: 100;
+        }
+        
+        .progress {
+            height: 100%;
+            background: #3498db;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        
+        /* Responsive design */
+        @media (max-width: 768px) {
+            .slide {
+                padding: 40px 20px;
+            }
+            
+            .slide-title {
+                font-size: 2.5rem;
+            }
+            
+            .slide-subtitle {
+                font-size: 1.4rem;
+            }
+            
+            .content-title {
+                font-size: 1.8rem;
+            }
+            
+            .points-list li {
+                font-size: 1.2rem;
+            }
+            
+            .nav-button {
+                padding: 10px 20px;
+                font-size: 0.9rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Progress bar -->
+    <div class="progress-bar">
+        <div class="progress" id="progress"></div>
+    </div>
+    
+    <!-- Navigation info -->
+    <div class="nav-info">
+        Use ← → ↑ ↓ keys or buttons below to navigate
+    </div>
+    
+    <!-- Slides container -->
+    <div class="slides-container" id="slidesContainer">
+        <!-- Replace me with Slides html-->
+        
+    </div>
+    
+    <!-- Navigation controls -->
+    <div class="nav-controls">
+        <button class="nav-button" id="prevBtn">←</button>
+        <button class="nav-button" id="nextBtn">→</button>
+    </div>
+
+    <script>
+        // Presentation state
+        let currentSlide = 1;
+        const totalSlides = document.querySelectorAll('.slide').length;
+        
+        // DOM elements
+        const slidesContainer = document.getElementById('slidesContainer');
+        const progressBar = document.getElementById('progress');
+        const prevBtn = document.getElementById('prevBtn');
+        const nextBtn = document.getElementById('nextBtn');
+        
+        // Initialize presentation
+        function initPresentation() {
+            updateSlide();
+            updateProgressBar();
+            
+            // Add keyboard navigation
+            document.addEventListener('keydown', handleKeyPress);
+            
+            // Add button event listeners
+            prevBtn.addEventListener('click', goToPrevSlide);
+            nextBtn.addEventListener('click', goToNextSlide);
+            
+            // Add touch/swipe support for mobile
+            let touchStartX = 0;
+            let touchEndX = 0;
+            
+            slidesContainer.addEventListener('touchstart', (e) => {
+                touchStartX = e.changedTouches[0].screenX;
+            });
+            
+            slidesContainer.addEventListener('touchend', (e) => {
+                touchEndX = e.changedTouches[0].screenX;
+                handleSwipe();
+            });
+        }
+        
+        // Handle keyboard navigation
+        function handleKeyPress(e) {
+            switch(e.key) {
+                case 'ArrowLeft':
+                case 'ArrowUp':
+                case 'PageUp':
+                    goToPrevSlide();
+                    break;
+                case 'ArrowRight':
+                case 'ArrowDown':
+                case 'PageDown':
+                case ' ':
+                    goToNextSlide();
+                    break;
+                case 'Home':
+                    goToSlide(1);
+                    break;
+                case 'End':
+                    goToSlide(totalSlides);
+                    break;
+            }
+        }
+        
+        // Handle swipe gestures
+        function handleSwipe() {
+            const swipeThreshold = 50;
+            const diff = touchStartX - touchEndX;
+            
+            if (Math.abs(diff) > swipeThreshold) {
+                if (diff > 0) {
+                    // Swipe left - next slide
+                    goToNextSlide();
+                } else {
+                    // Swipe right - previous slide
+                    goToPrevSlide();
+                }
+            }
+        }
+        
+        // Navigate to specific slide
+        function goToSlide(slideNumber) {
+            if (slideNumber < 1) slideNumber = 1;
+            if (slideNumber > totalSlides) slideNumber = totalSlides;
+            
+            currentSlide = slideNumber;
+            updateSlide();
+            updateProgressBar();
+        }
+        
+        // Go to previous slide
+        function goToPrevSlide() {
+            if (currentSlide > 1) {
+                currentSlide--;
+                updateSlide();
+                updateProgressBar();
+            }
+        }
+        
+        // Go to next slide
+        function goToNextSlide() {
+            if (currentSlide < totalSlides) {
+                currentSlide++;
+                updateSlide();
+                updateProgressBar();
+            }
+        }
+        
+        // Update visible slide
+        function updateSlide() {
+            // Remove active class from all slides
+            document.querySelectorAll('.slide').forEach(slide => {
+                slide.classList.remove('active');
+            });
+            
+            // Add active class to current slide
+            const currentSlideElement = document.getElementById(`slide${currentSlide}`);
+            if (currentSlideElement) {
+                currentSlideElement.classList.add('active');
+            }
+            
+            // Update button states
+            prevBtn.disabled = currentSlide === 1;
+            nextBtn.disabled = currentSlide === totalSlides;
+            
+            // Update slide numbers
+            document.querySelectorAll('.slide-number').forEach((el, index) => {
+                el.textContent = `Slide ${index + 1} of ${totalSlides}`;
+            });
+        }
+        
+        // Update progress bar
+        function updateProgressBar() {
+            const progress = ((currentSlide - 1) / (totalSlides - 1)) * 100;
+            progressBar.style.width = `${progress}%`;
+        }
+        
+        // Initialize presentation when page loads
+        document.addEventListener('DOMContentLoaded', initPresentation);
+        
+        // Also support fullscreen mode
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'f' || e.key === 'F') {
+                toggleFullscreen();
+            }
+        });
+        
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => {
+                    console.log(`Error attempting to enable fullscreen: ${err.message}`);
+                });
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                }
+            }
+        }
+    </script>
+</body>
+</html>

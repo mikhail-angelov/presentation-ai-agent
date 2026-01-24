@@ -10,9 +10,10 @@ async function* generateSlidesHTMLStream(
   duration: string,
   slidesContent: string,
   exampleHtml: string,
-  language: string = "en"
+  templateHtml: string,
+  language: string = "en",
 ): AsyncGenerator<string> {
-  const prompt = `Generate COMPLETE, professional HTML/CSS code for presentation slides based on the following content:
+  const prompt = `Generate HTML sections for individual presentation slides based on the following content. DO NOT generate the full HTML document - only generate the slide sections.
 
 PRESENTATION TOPIC: ${topic}
 TARGET AUDIENCE: ${audience || "General audience"}
@@ -21,41 +22,44 @@ PRESENTATION DURATION: ${duration || "10"} minutes
 SLIDES CONTENT:
 ${slidesContent || "No slides content provided"}
 
-EXAMPLE PRESENTATION HTML STRUCTURE (use as reference for structure and styling):
+BASE PRESENTATION TEMPLATE (use as reference for available CSS classes and structure):
+${templateHtml || "No example provided"}
+USE THOSE EXAMPLE OF SLIDES TO GENERATE REAL SLIDES
 ${exampleHtml || "No example provided"}
 
-Generate clean, modern HTML/CSS code for a presentation with the following requirements:
+IMPORTANT INSTRUCTIONS:
+1. Generate ONLY the slide sections (<section> elements) - NOT the full HTML document
+2. Each slide should be a separate <section> element with appropriate classes
+3. Use the CSS classes from the base template when possible (e.g., .slide, .slide-title, .content-block, .points-list, etc.)
+4. You can also use inline styles if needed for specific styling
+5. Generate 5-7 slides based on the content
+6. Each slide should have:
+   - A title (use <h1> or <h2> with appropriate classes)
+   - Content (paragraphs, lists, etc.)
+   - A slide number indicator (use <div class="slide-number">Slide X of Y</div>)
+7. First slide should have class="slide first-slide" and be a title slide
+8. Last slide should have class="slide last-slide" and be a conclusion slide
+9. Other slides should have class="slide"
+10. Make sure content is well-organized and visually appealing
 
-1. Design requirements:
-   - Professional, clean design similar to the example structure
-   - Simple CSS for good layout
-   - Use a color scheme that matches a professional presentation
-   - Follow the structure and styling patterns from the example
+AVAILABLE CSS CLASSES FROM TEMPLATE:
+- .slide (base slide class)
+- .first-slide (for first/title slide)
+- .last-slide (for last/conclusion slide)
+- .slide-title (for main slide titles)
+- .slide-subtitle (for subtitles)
+- .content-block (for content container)
+- .content-title (for content section titles)
+- .points-list (for unordered lists)
+- .diagram (for diagram containers)
+- .diagram-title (for diagram titles)
+- .diagram-content (for diagram content)
+- .circle, .rectangle, .line (for diagram elements)
+- .image-placeholder (for image placeholders)
+- .slide-number (for slide number indicator)
+- .thank-you (for thank you message)
 
-2. Code requirements:
-   - Single HTML file with embedded CSS
-   - Use inline CSS styles like in the example
-   - Structure slides using <section> tags with appropriate classes
-   - Include slide titles, content, and slide numbers
-
-3. Content requirements:
-   - Extract key information from the provided slides content
-   - Create clear, concise bullet points where appropriate
-   - Use appropriate typography (font sizes, weights)
-   - Ensure text is readable with good contrast
-   - Organize content into logical slides
-
-4. COMPLETENESS REQUIREMENTS:
-   - Generate the ENTIRE HTML document from start to finish
-   - MUST start with <!DOCTYPE html>
-   - MUST include complete <html>, <head>, and <body> tags
-   - MUST include CSS styles in <style> tag in head
-   - MUST include at least 5 slides with proper structure
-   - MUST end with the closing </html> tag
-   - DO NOT truncate or leave the HTML incomplete
-   - Ensure all tags are properly closed
-
-Generate ONLY the HTML/CSS code. Do not include any explanations, markdown formatting, or additional text outside of the HTML document.`;
+Generate ONLY the slide sections. Do not include <!DOCTYPE html>, <html>, <head>, <style>, or <body> tags. Do not include any explanations or markdown formatting.`;
 
   try {
     const stream = runAgentStream(prompt, "html_slides", language);
@@ -71,19 +75,20 @@ Generate ONLY the HTML/CSS code. Do not include any explanations, markdown forma
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { 
-      topic, 
-      audience, 
-      duration, 
-      slidesContent, 
+    const {
+      topic,
+      audience,
+      duration,
+      slidesContent,
       exampleHtml = "",
-      language = "en" 
+      templateHtml = "",
+      language = "en",
     } = body;
 
     if (!topic) {
       return new Response(
         JSON.stringify({ error: "Presentation topic is required" }),
-        { status: 400, headers: { 'Content-Type': 'application/json' } }
+        { status: 400, headers: { "Content-Type": "application/json" } },
       );
     }
 
@@ -99,7 +104,7 @@ export async function POST(request: NextRequest) {
       async start(controller) {
         try {
           let fullContent = "";
-          
+
           // Send initial metadata
           controller.enqueue(
             new TextEncoder().encode(
@@ -112,8 +117,8 @@ export async function POST(request: NextRequest) {
                 duration: duration || "10",
                 language,
                 timestamp: new Date().toISOString(),
-              })}\n\n`
-            )
+              })}\n\n`,
+            ),
           );
 
           // Stream the HTML content
@@ -123,28 +128,37 @@ export async function POST(request: NextRequest) {
             duration || "10",
             slidesContent || "",
             exampleHtml || "",
-            language
+            templateHtml || "",
+            language,
           );
 
           let chunkCount = 0;
           for await (const chunk of htmlStream) {
             fullContent += chunk;
             chunkCount++;
-            
+
             // Send chunk immediately
             controller.enqueue(
               new TextEncoder().encode(
-                `data: ${JSON.stringify({ chunk })}\n\n`
-              )
+                `data: ${JSON.stringify({ chunk })}\n\n`,
+              ),
             );
-            
+
             // Add small delay to prevent overwhelming the client
             if (chunkCount % 10 === 0) {
-              await new Promise(resolve => setTimeout(resolve, 10));
+              await new Promise((resolve) => setTimeout(resolve, 10));
             }
           }
-          
-          console.log(`Streamed ${chunkCount} chunks, total length: ${fullContent.length} chars`);
+
+          console.log(
+            `Streamed ${chunkCount} chunks, total length: ${fullContent.length} chars`,
+          );
+
+          // Now recompose the full HTML using the template
+          const finalHtml = templateHtml.replace(
+            "<!-- Replace me with Slides html-->",
+            fullContent,
+          );
 
           // Calculate processing time and token usage
           const actionDuration = Date.now() - actionStartTime;
@@ -159,7 +173,7 @@ export async function POST(request: NextRequest) {
                 timestamp: new Date(),
                 endpoint: "/api/generate-slides-stream",
                 data: { topic, audience, duration },
-                result: { success: true, contentLength: fullContent.length },
+                result: { success: true, contentLength: finalHtml.length },
                 tokensUsed,
                 duration: actionDuration,
               },
@@ -167,8 +181,8 @@ export async function POST(request: NextRequest) {
                 lastPresentationTopic: topic,
                 lastGeneratedAt: new Date().toISOString(),
                 totalTokensUsed:
-                  (sessionStore.getSession(sessionId)?.metadata?.totalTokensUsed ||
-                    0) + tokensUsed,
+                  (sessionStore.getSession(sessionId)?.metadata
+                    ?.totalTokensUsed || 0) + tokensUsed,
               },
             });
           }
@@ -178,19 +192,19 @@ export async function POST(request: NextRequest) {
             new TextEncoder().encode(
               `data: ${JSON.stringify({
                 done: true,
-                content: fullContent,
+                content: finalHtml,
                 tokensUsed,
                 duration: actionDuration,
                 sessionId,
                 actionId,
-              })}\n\n`
-            )
+              })}\n\n`,
+            ),
           );
 
           controller.close();
         } catch (error) {
           console.error("Error in stream:", error);
-          
+
           // Log error in session if exists
           if (sessionId) {
             const errorMessage =
@@ -211,9 +225,12 @@ export async function POST(request: NextRequest) {
           controller.enqueue(
             new TextEncoder().encode(
               `data: ${JSON.stringify({
-                error: error instanceof Error ? error.message : "Failed to generate slides HTML",
-              })}\n\n`
-            )
+                error:
+                  error instanceof Error
+                    ? error.message
+                    : "Failed to generate slides HTML",
+              })}\n\n`,
+            ),
           );
           controller.close();
         }
@@ -223,16 +240,16 @@ export async function POST(request: NextRequest) {
     // Return streaming response
     return new Response(stream, {
       headers: {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive',
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        Connection: "keep-alive",
       },
     });
   } catch (error) {
     console.error("Error in generate-slides-stream:", error);
     return new Response(
       JSON.stringify({ error: "Failed to generate slides HTML stream" }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } }
+      { status: 500, headers: { "Content-Type": "application/json" } },
     );
   }
 }

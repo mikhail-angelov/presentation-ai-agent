@@ -48,7 +48,8 @@ export default function Home() {
   });
   const [isGenerating, setIsGenerating] = useState(false);
   const [streamingContent, setStreamingContent] = useState("");
-  const [abortController, setAbortController] = useState<AbortController | null>(null);
+  const [abortController, setAbortController] =
+    useState<AbortController | null>(null);
   // Modal state for slides preview
   const [showSlidesModal, setShowSlidesModal] = useState(false);
   const [generatedSlidesHTML, setGeneratedSlidesHTML] = useState<string>("");
@@ -74,9 +75,9 @@ export default function Home() {
       ...prev,
       [step]: content,
     }));
-    
+
     // Also update generatedSlidesHTML if htmlSlides is being updated
-    if (step === "htmlSlides" && typeof content === 'string') {
+    if (step === "htmlSlides" && typeof content === "string") {
       setGeneratedSlidesHTML(content);
     }
   };
@@ -126,12 +127,12 @@ export default function Home() {
     const element = document.createElement("a");
     const file = new Blob([jsonString], { type: "application/json" });
     element.href = URL.createObjectURL(file);
-    
+
     // Create filename with timestamp
-    const timestamp = new Date().toISOString().split('T')[0];
+    const timestamp = new Date().toISOString().split("T")[0];
     const topic = stepContents.setup.topic || "presentation";
-    const filename = `prez-ai-${topic.replace(/\s+/g, '-').toLowerCase()}-${timestamp}.json`;
-    
+    const filename = `prez-ai-${topic.replace(/\s+/g, "-").toLowerCase()}-${timestamp}.json`;
+
     element.download = filename;
     document.body.appendChild(element);
     element.click();
@@ -148,40 +149,53 @@ export default function Home() {
   const handleLoadPresentation = (data: any) => {
     try {
       // Validate loaded data
-      if (!data.stepContents || typeof data.stepContents !== 'object') {
+      if (!data.stepContents || typeof data.stepContents !== "object") {
         throw new Error("Invalid save file: missing stepContents");
       }
 
       // Update step contents
       setStepContents(data.stepContents);
-      
+
       // Update generatedSlidesHTML if htmlSlides exists in loaded data
-      if (data.stepContents.htmlSlides && typeof data.stepContents.htmlSlides === 'string') {
+      if (
+        data.stepContents.htmlSlides &&
+        typeof data.stepContents.htmlSlides === "string"
+      ) {
         setGeneratedSlidesHTML(data.stepContents.htmlSlides);
       }
-      
+
       // Recompose stepHistory based on stepContents
       const newStepHistory: StepType[] = ["setup"]; // Always start with setup
-      
+
       // Check which steps have content and add them to history in order
-      const steps: StepType[] = ["setup", "outline", "speech", "slides", "htmlSlides"];
-      
+      const steps: StepType[] = [
+        "setup",
+        "outline",
+        "speech",
+        "slides",
+        "htmlSlides",
+      ];
+
       for (const step of steps) {
         if (step === "setup") continue; // Already added
         const content = data.stepContents[step];
         // Check if content exists and is not empty
-        if (content && 
-            (typeof content === 'string' ? content.trim() !== '' : 
-             Array.isArray(content) ? content.length > 0 : 
-             Object.keys(content).length > 0)) {
+        if (
+          content &&
+          (typeof content === "string"
+            ? content.trim() !== ""
+            : Array.isArray(content)
+              ? content.length > 0
+              : Object.keys(content).length > 0)
+        ) {
           if (!newStepHistory.includes(step)) {
             newStepHistory.push(step);
           }
         }
       }
-      
+
       setStepHistory(newStepHistory);
-      
+
       // Always set activeStep as "setup" after loading
       setActiveStep("setup");
 
@@ -191,10 +205,16 @@ export default function Home() {
         timestamp: data.timestamp || "unknown",
       });
 
-      addToast("Presentation loaded successfully! Starting from setup step.", "success");
+      addToast(
+        "Presentation loaded successfully! Starting from setup step.",
+        "success",
+      );
     } catch (error) {
       console.error("Error loading presentation:", error);
-      addToast(`Failed to load presentation: ${error instanceof Error ? error.message : "Invalid file format"}`, "error");
+      addToast(
+        `Failed to load presentation: ${error instanceof Error ? error.message : "Invalid file format"}`,
+        "error",
+      );
     }
   };
 
@@ -207,11 +227,11 @@ export default function Home() {
     }
     setIsGenerating(true);
     setStreamingContent("");
-    
+
     // Create abort controller for cancellation
     const controller = new AbortController();
     setAbortController(controller);
-    
+
     trackAction("start_presentation", {
       topic,
       audience,
@@ -237,37 +257,37 @@ export default function Home() {
           language: currentLanguage,
         }),
       });
-      
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-      
+
       if (!response.body) {
         throw new Error("No response body");
       }
-      
+
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let fullContent = "";
-      
+
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        
+
         const chunk = decoder.decode(value);
-        const lines = chunk.split('\n');
-        
+        const lines = chunk.split("\n");
+
         for (const line of lines) {
-          if (line.startsWith('data: ')) {
+          if (line.startsWith("data: ")) {
             try {
               const data = JSON.parse(line.slice(6));
-              
+
               if (data.chunk) {
                 // Stream chunk directly from LLM
                 fullContent += data.chunk;
                 setStreamingContent(fullContent);
               }
-              
+
               if (data.done) {
                 // Streaming completed
                 const durationMs = Date.now() - startTime;
@@ -279,7 +299,8 @@ export default function Home() {
                   timestamp: new Date(),
                   endpoint: "/api/generate-content",
                   status: "success",
-                  tokensUsed: data.tokensUsed || Math.floor(fullContent.length / 4),
+                  tokensUsed:
+                    data.tokensUsed || Math.floor(fullContent.length / 4),
                   duration: data.duration || durationMs,
                 };
                 addLLMRequest(newRequest);
@@ -293,19 +314,20 @@ export default function Home() {
                   },
                   {
                     contentLength: fullContent.length,
-                    tokensUsed: data.tokensUsed || Math.floor(fullContent.length / 4),
+                    tokensUsed:
+                      data.tokensUsed || Math.floor(fullContent.length / 4),
                     sessionId: data.sessionId,
                     newSessionCreated: data.newSessionCreated,
                   },
                   data.tokensUsed || Math.floor(fullContent.length / 4),
-                  data.duration || durationMs
+                  data.duration || durationMs,
                 );
                 // Navigate to outline step after streaming completes
                 setTimeout(() => {
                   navigateToStep("outline");
                 }, 500);
               }
-              
+
               if (data.error) {
                 throw new Error(data.error);
               }
@@ -328,7 +350,7 @@ export default function Home() {
           error: error instanceof Error ? error.message : "Unknown error",
         },
         undefined,
-        durationMs
+        durationMs,
       );
       const errorRequest: LLMRequest = {
         id: requestId,
@@ -349,10 +371,10 @@ export default function Home() {
   const handleGenerateSpeech = async () => {
     const { topic, audience, duration } = stepContents.setup;
     const outline = stepContents.outline;
-    
+
     setIsGenerating(true);
     setStreamingContent("");
-    
+
     // Create abort controller for cancellation
     const controller = new AbortController();
     setAbortController(controller);
@@ -382,37 +404,37 @@ export default function Home() {
           language: currentLanguage,
         }),
       });
-      
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-      
+
       if (!response.body) {
         throw new Error("No response body");
       }
-      
+
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let fullContent = "";
-      
+
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        
+
         const chunk = decoder.decode(value);
-        const lines = chunk.split('\n');
-        
+        const lines = chunk.split("\n");
+
         for (const line of lines) {
-          if (line.startsWith('data: ')) {
+          if (line.startsWith("data: ")) {
             try {
               const data = JSON.parse(line.slice(6));
-              
+
               if (data.chunk) {
                 // Stream chunk directly from LLM
                 fullContent += data.chunk;
                 setStreamingContent(fullContent);
               }
-              
+
               if (data.done) {
                 // Streaming completed
                 const durationMs = Date.now() - startTime;
@@ -424,7 +446,8 @@ export default function Home() {
                   timestamp: new Date(),
                   endpoint: "/api/generate-content",
                   status: "success",
-                  tokensUsed: data.tokensUsed || Math.floor(fullContent.length / 4),
+                  tokensUsed:
+                    data.tokensUsed || Math.floor(fullContent.length / 4),
                   duration: data.duration || durationMs,
                 };
                 addLLMRequest(newRequest);
@@ -437,17 +460,18 @@ export default function Home() {
                   },
                   {
                     contentLength: fullContent.length,
-                    tokensUsed: data.tokensUsed || Math.floor(fullContent.length / 4),
+                    tokensUsed:
+                      data.tokensUsed || Math.floor(fullContent.length / 4),
                   },
                   data.tokensUsed || Math.floor(fullContent.length / 4),
-                  data.duration || durationMs
+                  data.duration || durationMs,
                 );
                 // Navigate to speech step after streaming completes
                 setTimeout(() => {
                   navigateToStep("speech");
                 }, 500);
               }
-              
+
               if (data.error) {
                 throw new Error(data.error);
               }
@@ -470,7 +494,7 @@ export default function Home() {
           error: error instanceof Error ? error.message : "Unknown error",
         },
         undefined,
-        durationMs
+        durationMs,
       );
       const errorRequest: LLMRequest = {
         id: requestId,
@@ -491,10 +515,10 @@ export default function Home() {
   const handleGenerateSlides = async () => {
     const { topic, audience, duration } = stepContents.setup;
     const speech = stepContents.speech;
-    
+
     setIsGenerating(true);
     setStreamingContent("");
-    
+
     // Create abort controller for cancellation
     const controller = new AbortController();
     setAbortController(controller);
@@ -524,37 +548,37 @@ export default function Home() {
           language: currentLanguage,
         }),
       });
-      
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-      
+
       if (!response.body) {
         throw new Error("No response body");
       }
-      
+
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let fullContent = "";
-      
+
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        
+
         const chunk = decoder.decode(value);
-        const lines = chunk.split('\n');
-        
+        const lines = chunk.split("\n");
+
         for (const line of lines) {
-          if (line.startsWith('data: ')) {
+          if (line.startsWith("data: ")) {
             try {
               const data = JSON.parse(line.slice(6));
-              
+
               if (data.chunk) {
                 // Stream chunk directly from LLM
                 fullContent += data.chunk;
                 setStreamingContent(fullContent);
               }
-              
+
               if (data.done) {
                 // Streaming completed
                 const durationMs = Date.now() - startTime;
@@ -566,7 +590,8 @@ export default function Home() {
                   timestamp: new Date(),
                   endpoint: "/api/generate-content",
                   status: "success",
-                  tokensUsed: data.tokensUsed || Math.floor(fullContent.length / 4),
+                  tokensUsed:
+                    data.tokensUsed || Math.floor(fullContent.length / 4),
                   duration: data.duration || durationMs,
                 };
                 addLLMRequest(newRequest);
@@ -579,17 +604,18 @@ export default function Home() {
                   },
                   {
                     contentLength: fullContent.length,
-                    tokensUsed: data.tokensUsed || Math.floor(fullContent.length / 4),
+                    tokensUsed:
+                      data.tokensUsed || Math.floor(fullContent.length / 4),
                   },
                   data.tokensUsed || Math.floor(fullContent.length / 4),
-                  data.duration || durationMs
+                  data.duration || durationMs,
                 );
                 // Navigate to slides step after streaming completes
                 setTimeout(() => {
                   navigateToStep("slides");
                 }, 500);
               }
-              
+
               if (data.error) {
                 throw new Error(data.error);
               }
@@ -612,7 +638,7 @@ export default function Home() {
           error: error instanceof Error ? error.message : "Unknown error",
         },
         undefined,
-        durationMs
+        durationMs,
       );
       const errorRequest: LLMRequest = {
         id: requestId,
@@ -634,18 +660,20 @@ export default function Home() {
       setIsGenerating(true);
       setStreamingContent("");
       addToast("Generating HTML slides...", "info");
-      
+
       const { topic, audience, duration } = stepContents.setup;
       const slidesContent = stepContents.slides;
-      
+
       // Create abort controller for cancellation
       const controller = new AbortController();
       setAbortController(controller);
-      
+
       // Read example presentation HTML
-      const exampleResponse = await fetch("/example-presentation.html");
+      const templateResponse = await fetch("/presentation.html");
+      const templateHtml = await templateResponse.text();
+      const exampleResponse = await fetch("/example-slides.html");
       const exampleHtml = await exampleResponse.text();
-      
+
       // Generate HTML slides using LLM with streaming
       const response = await fetch("/api/generate-slides-stream", {
         method: "POST",
@@ -659,53 +687,54 @@ export default function Home() {
           duration,
           slidesContent,
           exampleHtml,
+          templateHtml,
           language: currentLanguage,
         }),
       });
-      
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-      
+
       if (!response.body) {
         throw new Error("No response body");
       }
-      
+
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let fullContent = "";
-      
+
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        
+
         const chunk = decoder.decode(value);
-        const lines = chunk.split('\n');
-        
+        const lines = chunk.split("\n");
+
         for (const line of lines) {
-          if (line.startsWith('data: ')) {
+          if (line.startsWith("data: ")) {
             try {
               const data = JSON.parse(line.slice(6));
-              
+
               if (data.chunk) {
                 // Stream chunk directly from LLM
                 fullContent += data.chunk;
                 setStreamingContent(fullContent);
               }
-              
+
               if (data.done) {
                 // Streaming completed
                 const htmlContent = data.content || fullContent;
-                
+
                 // Store HTML in stepContents
                 updateStepContent("htmlSlides", htmlContent);
-                
+
                 // Store HTML for modal
                 setGeneratedSlidesHTML(htmlContent);
-                
+
                 // Navigate to htmlSlides step
                 navigateToStep("htmlSlides");
-                
+
                 // Track successful generation
                 trackAction("generate_slides_html_stream_success", {
                   topic,
@@ -713,10 +742,10 @@ export default function Home() {
                   tokensUsed: data.tokensUsed,
                   duration: data.duration,
                 });
-                
+
                 addToast("HTML slides generated successfully!", "success");
               }
-              
+
               if (data.error) {
                 throw new Error(data.error);
               }
@@ -726,11 +755,13 @@ export default function Home() {
           }
         }
       }
-      
     } catch (error) {
       console.error("Error generating slides:", error);
-      addToast(`Failed to generate slides: ${error instanceof Error ? error.message : "Unknown error"}`, "error");
-      
+      addToast(
+        `Failed to generate slides: ${error instanceof Error ? error.message : "Unknown error"}`,
+        "error",
+      );
+
       // Track error
       trackAction("generate_slides_html_stream_error", {
         topic: stepContents.setup.topic,
@@ -740,7 +771,6 @@ export default function Home() {
       setIsGenerating(false);
     }
   };
-
 
   // Track initial page load in session
   useEffect(() => {
@@ -830,7 +860,9 @@ export default function Home() {
             onShowPreview={() => setShowSlidesModal(true)}
             onCopyContent={handleCopyContent}
             onDownloadContent={handleDownloadContent}
-            onUpdateHtmlSlides={(content) => updateStepContent("htmlSlides", content)}
+            onUpdateHtmlSlides={(content) =>
+              updateStepContent("htmlSlides", content)
+            }
           />
         );
 
@@ -850,7 +882,7 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 p-4 md:p-8">
       <div className="max-w-7xl mx-auto">
-        <Header 
+        <Header
           onSave={handleSavePresentation}
           onLoad={handleLoadPresentation}
         />
@@ -889,11 +921,13 @@ export default function Home() {
         </div>
       </div>
 
-      {showSlidesModal&& <SlidesPreviewModal
-        onClose={() => setShowSlidesModal(false)}
-        htmlContent={generatedSlidesHTML}
-        topic={stepContents.setup.topic}
-      />}
+      {showSlidesModal && (
+        <SlidesPreviewModal
+          onClose={() => setShowSlidesModal(false)}
+          htmlContent={generatedSlidesHTML}
+          topic={stepContents.setup.topic}
+        />
+      )}
     </div>
   );
 }
