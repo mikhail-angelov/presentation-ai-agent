@@ -41,7 +41,7 @@ export default function Header({ onSave, onLoad }: HeaderProps) {
         onLoad(data);
       } catch (error) {
         console.error("Error parsing JSON file:", error);
-        alert("Invalid JSON file. Please select a valid save file.");
+        alert(t("alerts.invalidJsonFile"));
       }
     };
     reader.readAsText(file);

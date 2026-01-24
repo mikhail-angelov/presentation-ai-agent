@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { useTranslation } from "@/app/hooks/useTranslation";
 
 interface StreamingDisplayProps {
   isGenerating: boolean;
@@ -13,6 +14,7 @@ export default function StreamingDisplay({
   streamingContent,
   onCancel,
 }: StreamingDisplayProps) {
+  const { t } = useTranslation();
   const contentRef = useRef<HTMLDivElement>(null);
   const prevContentLengthRef = useRef(0);
   const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -61,7 +63,7 @@ export default function StreamingDisplay({
     <div className="mb-6 bg-white rounded-2xl shadow-lg p-6">
       <div className="flex items-center gap-3 mb-4">
         <div className="h-3 w-3 bg-blue-600 rounded-full animate-pulse"></div>
-        <h3 className="text-lg font-semibold text-gray-900">AI is generating your presentation...</h3>
+        <h3 className="text-lg font-semibold text-gray-900">{t("streamingDisplay.title")}</h3>
       </div>
       <div 
         ref={contentRef}
@@ -70,21 +72,21 @@ export default function StreamingDisplay({
         <div className="prose prose-blue max-w-none">
           <pre className="whitespace-pre-wrap font-sans text-gray-800">
             {streamingContent}
-            {!streamingContent && "Starting AI generation..."}
+            {!streamingContent && t("streamingDisplay.startingMessage")}
             <span className="inline-block w-2 h-4 bg-blue-500 ml-1 animate-pulse"></span>
           </pre>
         </div>
       </div>
       <div className="mt-4 flex items-center justify-between">
         <p className="text-sm text-gray-500">
-          Please wait while our AI creates a comprehensive presentation plan for you.
+          {t("streamingDisplay.waitMessage")}
         </p>
         {onCancel && (
           <button
             onClick={onCancel}
             className="px-4 py-2 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors duration-200"
           >
-            Cancel Generation
+            {t("streamingDisplay.cancelButton")}
           </button>
         )}
       </div>

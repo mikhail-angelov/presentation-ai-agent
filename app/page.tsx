@@ -8,7 +8,6 @@ import SpeechStep from "./components/presentation/SpeechStep";
 import SlidesStep from "./components/presentation/SlidesStep";
 import HtmlSlidesStep from "./components/presentation/HtmlSlidesStep";
 import StreamingDisplay from "./components/presentation/StreamingDisplay";
-import UserGuides from "./components/presentation/UserGuides";
 import PreparationSteps from "./components/presentation/PreparationSteps";
 import AIUsageMonitoring from "./components/monitoring/AIUsageMonitoring";
 import { LLMRequest, RateLimit } from "./types";
@@ -20,7 +19,7 @@ import SlidesPreviewModal from "./components/shared/SlidesPreviewModal";
 
 export default function Home() {
   const { session, trackAction } = useSession();
-  const { currentLanguage, isLoading } = useTranslation();
+  const { currentLanguage, isLoading, t } = useTranslation();
   const { addToast } = useToast();
 
   // Step management
@@ -90,7 +89,7 @@ export default function Home() {
     }
     setIsGenerating(false);
     setStreamingContent("");
-    addToast("Generation cancelled.", "info");
+    addToast(t("toasts.generationCancelled"), "info");
     trackAction("cancel_generation", {
       step: activeStep,
       topic: stepContents.setup.topic,
@@ -110,7 +109,7 @@ export default function Home() {
 
   const handleCopyContent = (content: string) => {
     navigator.clipboard.writeText(content);
-    addToast("Content copied to clipboard!", "success");
+    addToast(t("toasts.contentCopied"), "success");
   };
 
   // Save presentation data to JSON file
@@ -206,13 +205,13 @@ export default function Home() {
       });
 
       addToast(
-        "Presentation loaded successfully! Starting from setup step.",
+        t("toasts.presentationLoaded"),
         "success",
       );
     } catch (error) {
       console.error("Error loading presentation:", error);
       addToast(
-        `Failed to load presentation: ${error instanceof Error ? error.message : "Invalid file format"}`,
+        t("toasts.loadPresentationFailed", { error: error instanceof Error ? error.message : "Invalid file format" }),
         "error",
       );
     }
@@ -222,7 +221,7 @@ export default function Home() {
   const handleGenerateOutline = async () => {
     const { topic, audience, duration, keyPoints } = stepContents.setup;
     if (!topic.trim()) {
-      addToast("Please enter a presentation topic first.", "warning");
+      addToast(t("toasts.enterTopicFirst"), "warning");
       return;
     }
     setIsGenerating(true);
@@ -361,7 +360,7 @@ export default function Home() {
         duration: durationMs,
       };
       addLLMRequest(errorRequest);
-      addToast("Failed to connect to AI service. Please try again.", "error");
+      addToast(t("toasts.aiServiceFailed"), "error");
     } finally {
       setIsGenerating(false);
     }
@@ -505,7 +504,7 @@ export default function Home() {
         duration: durationMs,
       };
       addLLMRequest(errorRequest);
-      addToast("Failed to connect to AI service. Please try again.", "error");
+      addToast(t("toasts.aiServiceFailed"), "error");
     } finally {
       setIsGenerating(false);
     }
@@ -649,7 +648,7 @@ export default function Home() {
         duration: durationMs,
       };
       addLLMRequest(errorRequest);
-      addToast("Failed to connect to AI service. Please try again.", "error");
+      addToast(t("toasts.aiServiceFailed"), "error");
     } finally {
       setIsGenerating(false);
     }
@@ -659,7 +658,7 @@ export default function Home() {
     try {
       setIsGenerating(true);
       setStreamingContent("");
-      addToast("Generating HTML slides...", "info");
+      addToast(t("toasts.generatingHtmlSlides"), "info");
 
       const { topic, audience, duration } = stepContents.setup;
       const slidesContent = stepContents.slides;
@@ -743,7 +742,7 @@ export default function Home() {
                   duration: data.duration,
                 });
 
-                addToast("HTML slides generated successfully!", "success");
+                addToast(t("toasts.htmlSlidesGenerated"), "success");
               }
 
               if (data.error) {
@@ -758,7 +757,7 @@ export default function Home() {
     } catch (error) {
       console.error("Error generating slides:", error);
       addToast(
-        `Failed to generate slides: ${error instanceof Error ? error.message : "Unknown error"}`,
+        t("toasts.generateSlidesFailed", { error: error instanceof Error ? error.message : "Unknown error" }),
         "error",
       );
 
@@ -897,7 +896,6 @@ export default function Home() {
           {/* Left Column - Current Step Content */}
           <div className="lg:col-span-2 space-y-6 md:space-y-8">
             {renderStepContent()}
-            <UserGuides />
           </div>
 
           {/* Right Column - Step-by-Step Flow & API Monitoring */}

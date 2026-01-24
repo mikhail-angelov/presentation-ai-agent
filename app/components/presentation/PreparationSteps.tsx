@@ -2,69 +2,8 @@
 
 import { TrendingUp, CheckCircle, Target, Layout, Mic, FileText, Eye } from "lucide-react";
 import { PresentationStep, STEPS, StepType } from "@/app/types/steps";
+import { useTranslation } from "@/app/hooks/useTranslation";
 
-const steps: PresentationStep[] = [
-  {
-    id: STEPS[0],
-    title: "Setup & Outline",
-    description: "Define your topic and generate presentation outline",
-    icon: <Target className="h-6 w-6" />,
-    completed: false,
-    tips: [
-      "Be specific about your topic",
-      "Identify your target audience",
-      "Define key points and duration",
-    ],
-  },
-  {
-    id: STEPS[1],
-    title: "Speech Generation",
-    description: "Convert outline to spoken presentation",
-    icon: <Mic className="h-6 w-6" />,
-    completed: false,
-    tips: [
-      "Review and edit the generated speech",
-      "Adjust for natural speaking style",
-      "Consider timing and pacing",
-    ],
-  },
-  {
-    id: STEPS[2],
-    title: "Slide Creation",
-    description: "Create visual slides from speech content",
-    icon: <Layout className="h-6 w-6" />,
-    completed: false,
-    tips: [
-      "Focus on key visual elements",
-      "Keep slides simple and clear",
-      "Use visuals to support your message",
-    ],
-  },
-  {
-    id: STEPS[3],
-    title: "HTML Slides Generation",
-    description: "Generate HTML presentation from slide content",
-    icon: <FileText className="h-6 w-6" />,
-    completed: false,
-    tips: [
-      "Review the generated HTML slides",
-      "Make any final adjustments",
-      "Prepare for final presentation",
-    ],
-  },
-  {
-    id: STEPS[4],
-    title: "Review & Download",
-    description: "Preview and download HTML presentation slides",
-    icon: <Eye className="h-6 w-6" />,
-    completed: false,
-    tips: [
-      "Preview the generated HTML slides",
-      "Download or copy the HTML code",
-      "Test the presentation in a browser",
-    ],
-  },
-];
 
 interface PreparationStepsProps {
   currentStep: StepType;
@@ -77,6 +16,71 @@ export default function PreparationSteps({
   stepHistory,
   onStepClick,
 }: PreparationStepsProps) {
+  const { t } = useTranslation();
+  
+  const steps: PresentationStep[] = [
+    {
+      id: STEPS[0],
+      title: t("preparationSteps.steps.setupOutline.title"),
+      description: t("preparationSteps.steps.setupOutline.description"),
+      icon: <Target className="h-6 w-6" />,
+      completed: false,
+      tips: [
+        t("preparationSteps.steps.setupOutline.tips.0"),
+        t("preparationSteps.steps.setupOutline.tips.1"),
+        t("preparationSteps.steps.setupOutline.tips.2"),
+      ],
+    },
+    {
+      id: STEPS[1],
+      title: t("preparationSteps.steps.speechGeneration.title"),
+      description: t("preparationSteps.steps.speechGeneration.description"),
+      icon: <Mic className="h-6 w-6" />,
+      completed: false,
+      tips: [
+        t("preparationSteps.steps.speechGeneration.tips.0"),
+        t("preparationSteps.steps.speechGeneration.tips.1"),
+        t("preparationSteps.steps.speechGeneration.tips.2"),
+      ],
+    },
+    {
+      id: STEPS[2],
+      title: t("preparationSteps.steps.slideCreation.title"),
+      description: t("preparationSteps.steps.slideCreation.description"),
+      icon: <Layout className="h-6 w-6" />,
+      completed: false,
+      tips: [
+        t("preparationSteps.steps.slideCreation.tips.0"),
+        t("preparationSteps.steps.slideCreation.tips.1"),
+        t("preparationSteps.steps.slideCreation.tips.2"),
+      ],
+    },
+    {
+      id: STEPS[3],
+      title: t("preparationSteps.steps.htmlSlidesGeneration.title"),
+      description: t("preparationSteps.steps.htmlSlidesGeneration.description"),
+      icon: <FileText className="h-6 w-6" />,
+      completed: false,
+      tips: [
+        t("preparationSteps.steps.htmlSlidesGeneration.tips.0"),
+        t("preparationSteps.steps.htmlSlidesGeneration.tips.1"),
+        t("preparationSteps.steps.htmlSlidesGeneration.tips.2"),
+      ],
+    },
+    {
+      id: STEPS[4],
+      title: t("preparationSteps.steps.reviewDownload.title"),
+      description: t("preparationSteps.steps.reviewDownload.description"),
+      icon: <Eye className="h-6 w-6" />,
+      completed: false,
+      tips: [
+        t("preparationSteps.steps.reviewDownload.tips.0"),
+        t("preparationSteps.steps.reviewDownload.tips.1"),
+        t("preparationSteps.steps.reviewDownload.tips.2"),
+      ],
+    },
+  ];
+  
   const getStepCompletion = (step: StepType) => {
     return stepHistory.includes(step);
   };
@@ -100,7 +104,7 @@ export default function PreparationSteps({
       <div className="flex items-center gap-3 mb-6">
         <TrendingUp className="h-7 w-7 text-purple-600" />
         <h2 className="text-xl md:text-2xl font-bold text-gray-900">
-          Preparation Steps
+          {t("preparationSteps.title")}
         </h2>
       </div>
 

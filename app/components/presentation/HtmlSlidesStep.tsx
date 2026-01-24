@@ -2,6 +2,7 @@
 
 import { FileText, Eye, Download, Copy, ChevronLeft } from "lucide-react";
 import { StepContent } from "@/app/types/steps";
+import { useTranslation } from "@/app/hooks/useTranslation";
 
 interface HtmlSlidesStepProps {
   htmlSlides: string;
@@ -22,6 +23,7 @@ export default function HtmlSlidesStep({
   onDownloadContent,
   onUpdateHtmlSlides,
 }: HtmlSlidesStepProps) {
+  const { t } = useTranslation();
   const handleDownloadHTML = () => {
     const filename = `presentation-${setup.topic.replace(/\s+/g, "-").toLowerCase()}.html`;
     onDownloadContent(htmlSlides, filename);
@@ -36,17 +38,17 @@ export default function HtmlSlidesStep({
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <button
+            <button
             onClick={onBack}
             className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
           >
             <ChevronLeft className="h-5 w-5" />
-            <span className="font-medium">Back to Slides</span>
+            <span className="font-medium">{t("htmlSlidesStep.backButton")}</span>
           </button>
         </div>
         <div className="flex items-center gap-2">
           <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
-            HTML Slides
+            {t("htmlSlidesStep.badge")}
           </span>
         </div>
       </div>
@@ -58,9 +60,9 @@ export default function HtmlSlidesStep({
             <FileText className="h-6 w-6 text-blue-600" />
           </div>
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">HTML Presentation Slides</h2>
+            <h2 className="text-2xl font-bold text-gray-900">{t("htmlSlidesStep.title")}</h2>
             <p className="text-gray-600">
-              Your AI-generated HTML slides are ready. Preview, copy, or download them.
+              {t("htmlSlidesStep.subtitle")}
             </p>
           </div>
         </div>
@@ -68,15 +70,15 @@ export default function HtmlSlidesStep({
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
           <div className="bg-gray-50 p-4 rounded-lg">
-            <div className="text-sm text-gray-600">Topic</div>
+            <div className="text-sm text-gray-600">{t("htmlSlidesStep.stats.topic")}</div>
             <div className="font-semibold text-gray-900 truncate">{setup.topic}</div>
           </div>
           <div className="bg-gray-50 p-4 rounded-lg">
-            <div className="text-sm text-gray-600">Audience</div>
+            <div className="text-sm text-gray-600">{t("htmlSlidesStep.stats.audience")}</div>
             <div className="font-semibold text-gray-900">{setup.audience}</div>
           </div>
           <div className="bg-gray-50 p-4 rounded-lg">
-            <div className="text-sm text-gray-600">File Size</div>
+            <div className="text-sm text-gray-600">{t("htmlSlidesStep.stats.fileSize")}</div>
             <div className="font-semibold text-gray-900">
               {Math.ceil(htmlSlides.length / 1024)} KB
             </div>
@@ -90,21 +92,21 @@ export default function HtmlSlidesStep({
             className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors"
           >
             <Eye className="h-5 w-5" />
-            Preview Slides
+            {t("htmlSlidesStep.buttons.preview")}
           </button>
           <button
             onClick={handleDownloadHTML}
             className="flex items-center gap-2 px-6 py-3 border border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-50 transition-colors"
           >
             <Download className="h-5 w-5" />
-            Download HTML
+            {t("htmlSlidesStep.buttons.download")}
           </button>
           <button
             onClick={handleCopyHTML}
             className="flex items-center gap-2 px-6 py-3 border border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-50 transition-colors"
           >
             <Copy className="h-5 w-5" />
-            Copy HTML
+            {t("htmlSlidesStep.buttons.copy")}
           </button>
         </div>
 
@@ -112,9 +114,9 @@ export default function HtmlSlidesStep({
         <div className="border border-gray-200 rounded-lg overflow-hidden">
           <div className="bg-gray-50 px-4 py-2 border-b border-gray-200">
             <div className="flex items-center justify-between">
-              <span className="font-medium text-gray-700">HTML Code Preview</span>
+              <span className="font-medium text-gray-700">{t("htmlSlidesStep.preview.title")}</span>
               <span className="text-sm text-gray-500">
-                Full HTML code - editable
+                {t("htmlSlidesStep.preview.subtitle")}
               </span>
             </div>
           </div>
@@ -135,13 +137,13 @@ export default function HtmlSlidesStep({
 
         {/* Instructions */}
         <div className="mt-8 p-4 bg-blue-50 rounded-lg">
-          <h3 className="font-semibold text-blue-900 mb-2">How to use your HTML slides:</h3>
+          <h3 className="font-semibold text-blue-900 mb-2">{t("htmlSlidesStep.instructions.title")}</h3>
           <ul className="text-blue-800 space-y-1 text-sm">
-            <li>• Click "Preview Slides" to see your presentation in a modal</li>
-            <li>• Click "Download HTML" to save the file to your computer</li>
-            <li>• Open the downloaded HTML file in any web browser</li>
-            <li>• Use the presentation by navigating with arrow keys or scroll</li>
-            <li>• The HTML file is self-contained with all CSS styles included</li>
+            <li>• {t("htmlSlidesStep.instructions.preview")}</li>
+            <li>• {t("htmlSlidesStep.instructions.download")}</li>
+            <li>• {t("htmlSlidesStep.instructions.open")}</li>
+            <li>• {t("htmlSlidesStep.instructions.navigate")}</li>
+            <li>• {t("htmlSlidesStep.instructions.selfContained")}</li>
           </ul>
         </div>
       </div>

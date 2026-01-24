@@ -1,6 +1,7 @@
 "use client";
 
 import { useToast } from "@/app/contexts/ToastContext";
+import { useTranslation } from "@/app/hooks/useTranslation";
 
 interface SlidesPreviewModalProps {
   onClose: () => void;
@@ -14,6 +15,7 @@ export default function SlidesPreviewModal({
   topic = "Presentation",
 }: SlidesPreviewModalProps) {
   const { addToast } = useToast();
+  const { t } = useTranslation();
 
   if (!htmlContent) return null;
 
@@ -29,14 +31,14 @@ export default function SlidesPreviewModal({
         <div className="flex items-center justify-between p-6 border-b">
           <div>
             <h2 className="text-2xl font-bold text-gray-900">
-              Presentation Slides Preview
+              {t("slidesPreviewModal.title")}
             </h2>
             <p className="text-gray-600 mt-1">
-              Preview your AI-generated slides. Download as HTML to use.
+              {t("slidesPreviewModal.subtitle")}
             </p>
             {topic && (
               <p className="text-sm text-gray-500 mt-1">
-                Topic: <span className="font-medium">{topic}</span>
+                {t("slidesPreviewModal.topicLabel")}: <span className="font-medium">{topic}</span>
               </p>
             )}
           </div>
@@ -96,7 +98,7 @@ export default function SlidesPreviewModal({
                     d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
                   ></path>
                 </svg>
-                AI-generated slides
+                {t("slidesPreviewModal.features.aiGenerated")}
               </span>
               <span className="flex items-center gap-1">
                 <svg
@@ -113,7 +115,7 @@ export default function SlidesPreviewModal({
                     d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                   ></path>
                 </svg>
-                Interactive preview
+                {t("slidesPreviewModal.features.interactive")}
               </span>
               <span className="flex items-center gap-1">
                 <svg
@@ -130,7 +132,7 @@ export default function SlidesPreviewModal({
                     d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
                   ></path>
                 </svg>
-                {Math.ceil(htmlContent.length / 1024)} KB
+                {Math.ceil(htmlContent.length / 1024)} {t("slidesPreviewModal.features.kb")}
               </span>
             </div>
             <div className="flex items-center gap-2">
@@ -138,7 +140,7 @@ export default function SlidesPreviewModal({
                 onClick={handleCopyHTML}
                 className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
               >
-                Copy HTML
+                {t("slidesPreviewModal.buttons.copy")}
               </button>
               <button
                 onClick={() => {
@@ -155,7 +157,7 @@ export default function SlidesPreviewModal({
                 }}
                 className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
               >
-                Download HTML
+                {t("slidesPreviewModal.buttons.download")}
               </button>
             </div>
           </div>

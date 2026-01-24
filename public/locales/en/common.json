@@ -52,5 +52,168 @@
     "savePresentation": "Save Presentation",
     "loadPresentation": "Load Presentation",
     "menu": "Menu"
+  },
+  "toasts": {
+    "generationCancelled": "Generation cancelled.",
+    "contentCopied": "Content copied to clipboard!",
+    "presentationLoaded": "Presentation loaded successfully! Starting from setup step.",
+    "loadPresentationFailed": "Failed to load presentation: {error}",
+    "enterTopicFirst": "Please enter a presentation topic first.",
+    "aiServiceFailed": "Failed to connect to AI service. Please try again.",
+    "generatingHtmlSlides": "Generating HTML slides...",
+    "htmlSlidesGenerated": "HTML slides generated successfully!",
+    "generateSlidesFailed": "Failed to generate slides: {error}"
+  },
+  "alerts": {
+    "invalidJsonFile": "Invalid JSON file. Please select a valid save file."
+  },
+  "preparationSteps": {
+    "title": "Preparation Steps",
+    "steps": {
+      "setupOutline": {
+        "title": "Setup & Outline",
+        "description": "Define your topic and generate presentation outline",
+        "tips": [
+          "Be specific about your topic",
+          "Identify your target audience",
+          "Define key points and duration"
+        ]
+      },
+      "speechGeneration": {
+        "title": "Speech Generation",
+        "description": "Convert outline to spoken presentation",
+        "tips": [
+          "Review and edit the generated speech",
+          "Adjust for natural speaking style",
+          "Consider timing and pacing"
+        ]
+      },
+      "slideCreation": {
+        "title": "Slide Creation",
+        "description": "Create visual slides from speech content",
+        "tips": [
+          "Focus on key visual elements",
+          "Keep slides simple and clear",
+          "Use visuals to support your message"
+        ]
+      },
+      "htmlSlidesGeneration": {
+        "title": "HTML Slides Generation",
+        "description": "Generate HTML presentation from slide content",
+        "tips": [
+          "Review the generated HTML slides",
+          "Make any final adjustments",
+          "Prepare for final presentation"
+        ]
+      },
+      "reviewDownload": {
+        "title": "Review & Download",
+        "description": "Preview and download HTML presentation slides",
+        "tips": [
+          "Preview the generated HTML slides",
+          "Download or copy the HTML code",
+          "Test the presentation in a browser"
+        ]
+      }
+    }
+  },
+  "userGuides": {
+    "title": "Presentation Guides",
+    "guides": {
+      "clearGoal": {
+        "title": "Start with a Clear Goal",
+        "description": "Define what you want your audience to learn or do after your presentation"
+      },
+      "keepSimple": {
+        "title": "Keep it Simple",
+        "description": "Focus on 3-5 key points maximum to avoid overwhelming your audience"
+      },
+      "engageAudience": {
+        "title": "Engage Your Audience",
+        "description": "Use stories, questions, and interactive elements to keep attention"
+      },
+      "practice": {
+        "title": "Practice Makes Perfect",
+        "description": "Rehearse multiple times to build confidence and smooth delivery"
+      }
+    }
+  },
+  "outlineStep": {
+    "title": "Presentation Outline",
+    "subtitle": "Review and edit your presentation outline",
+    "backButton": "Back to Setup",
+    "generateSpeechButton": "Generate Speech",
+    "contentTitle": "Outline Content",
+    "placeholder": "Your presentation outline will appear here...",
+    "regenerateButton": "Regenerate Outline",
+    "generatedOn": "Outline generated on"
+  },
+  "speechStep": {
+    "title": "Presentation Speech",
+    "subtitle": "Review and edit your spoken presentation",
+    "backButton": "Back to Outline",
+    "generateSlidesButton": "Generate Slides",
+    "contentTitle": "Speech Content",
+    "placeholder": "Your presentation speech will appear here...",
+    "regenerateButton": "Regenerate Speech",
+    "generatedOn": "Speech generated on"
+  },
+  "slidesStep": {
+    "title": "Presentation Slides",
+    "subtitle": "Review and edit your slide content",
+    "backButton": "Back to Speech",
+    "generateHtmlSlidesButton": "Generate HTML Slides",
+    "contentTitle": "Slide Content",
+    "placeholder": "Your presentation slides will appear here...",
+    "regenerateButton": "Regenerate Slides",
+    "generatedOn": "Slides generated on"
+  },
+  "htmlSlidesStep": {
+    "title": "HTML Presentation Slides",
+    "subtitle": "Your AI-generated HTML slides are ready. Preview, copy, or download them.",
+    "backButton": "Back to Slides",
+    "badge": "HTML Slides",
+    "stats": {
+      "topic": "Topic",
+      "audience": "Audience",
+      "fileSize": "File Size"
+    },
+    "buttons": {
+      "preview": "Preview Slides",
+      "download": "Download HTML",
+      "copy": "Copy HTML"
+    },
+    "preview": {
+      "title": "HTML Code Preview",
+      "subtitle": "Full HTML code - editable"
+    },
+    "instructions": {
+      "title": "How to use your HTML slides:",
+      "preview": "Click \"Preview Slides\" to see your presentation in a modal",
+      "download": "Click \"Download HTML\" to save the file to your computer",
+      "open": "Open the downloaded HTML file in any web browser",
+      "navigate": "Use the presentation by navigating with arrow keys or scroll",
+      "selfContained": "The HTML file is self-contained with all CSS styles included"
+    }
+  },
+  "streamingDisplay": {
+    "title": "AI is generating your presentation...",
+    "startingMessage": "Starting AI generation...",
+    "waitMessage": "Please wait while our AI creates a comprehensive presentation plan for you.",
+    "cancelButton": "Cancel Generation"
+  },
+  "slidesPreviewModal": {
+    "title": "Presentation Slides Preview",
+    "subtitle": "Preview your AI-generated slides. Download as HTML to use.",
+    "topicLabel": "Topic",
+    "features": {
+      "aiGenerated": "AI-generated slides",
+      "interactive": "Interactive preview",
+      "kb": "KB"
+    },
+    "buttons": {
+      "copy": "Copy HTML",
+      "download": "Download HTML"
+    }
   }
 }
