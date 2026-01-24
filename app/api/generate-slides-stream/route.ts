@@ -9,6 +9,7 @@ async function* generateSlidesHTMLStream(
   audience: string,
   duration: string,
   slidesContent: string,
+  exampleHtml: string,
   language: string = "en"
 ): AsyncGenerator<string> {
   const prompt = `Generate COMPLETE, professional HTML/CSS code for presentation slides based on the following content:
@@ -20,31 +21,31 @@ PRESENTATION DURATION: ${duration || "10"} minutes
 SLIDES CONTENT:
 ${slidesContent || "No slides content provided"}
 
+EXAMPLE PRESENTATION HTML STRUCTURE (use as reference for structure and styling):
+${exampleHtml || "No example provided"}
+
 Generate clean, modern HTML/CSS code for a presentation with the following requirements:
 
 1. Design requirements:
-   - Professional, clean design
-   - Simple CSS for good layout for html2canvas render
-   - ok to include some resources from cdn
+   - Professional, clean design similar to the example structure
+   - Simple CSS for good layout
    - Use a color scheme that matches a professional presentation
+   - Follow the structure and styling patterns from the example
 
 2. Code requirements:
    - Single HTML file with embedded CSS
-   - preferable inline css styles
+   - Use inline CSS styles like in the example
+   - Structure slides using <section> tags with appropriate classes
+   - Include slide titles, content, and slide numbers
 
 3. Content requirements:
-   - Extract key information from the provided content
+   - Extract key information from the provided slides content
    - Create clear, concise bullet points where appropriate
    - Use appropriate typography (font sizes, weights)
    - Ensure text is readable with good contrast
+   - Organize content into logical slides
 
-4. Diagram requirements:
-   - Create simple CSS-based diagrams for key concepts
-   - Use CSS shapes (circles, rectangles, lines) to represent relationships
-   - Use color coding for different elements
-   - Include labels for diagram components
-
-5. COMPLETENESS REQUIREMENTS:
+4. COMPLETENESS REQUIREMENTS:
    - Generate the ENTIRE HTML document from start to finish
    - MUST start with <!DOCTYPE html>
    - MUST include complete <html>, <head>, and <body> tags
@@ -75,6 +76,7 @@ export async function POST(request: NextRequest) {
       audience, 
       duration, 
       slidesContent, 
+      exampleHtml = "",
       language = "en" 
     } = body;
 
@@ -120,6 +122,7 @@ export async function POST(request: NextRequest) {
             audience || "",
             duration || "10",
             slidesContent || "",
+            exampleHtml || "",
             language
           );
 

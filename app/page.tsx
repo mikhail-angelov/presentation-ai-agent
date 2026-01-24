@@ -6,6 +6,7 @@ import PresentationSetup from "./components/presentation/PresentationSetup";
 import OutlineStep from "./components/presentation/OutlineStep";
 import SpeechStep from "./components/presentation/SpeechStep";
 import SlidesStep from "./components/presentation/SlidesStep";
+import HtmlSlidesStep from "./components/presentation/HtmlSlidesStep";
 import StreamingDisplay from "./components/presentation/StreamingDisplay";
 import UserGuides from "./components/presentation/UserGuides";
 import PreparationSteps from "./components/presentation/PreparationSteps";
@@ -35,6 +36,7 @@ export default function Home() {
     outline: "",
     speech: "",
     slides: "",
+    htmlSlides: "",
   });
 
   // UI states
@@ -72,6 +74,11 @@ export default function Home() {
       ...prev,
       [step]: content,
     }));
+    
+    // Also update generatedSlidesHTML if htmlSlides is being updated
+    if (step === "htmlSlides" && typeof content === 'string') {
+      setGeneratedSlidesHTML(content);
+    }
   };
 
   // Cancel generation function
@@ -148,11 +155,16 @@ export default function Home() {
       // Update step contents
       setStepContents(data.stepContents);
       
+      // Update generatedSlidesHTML if htmlSlides exists in loaded data
+      if (data.stepContents.htmlSlides && typeof data.stepContents.htmlSlides === 'string') {
+        setGeneratedSlidesHTML(data.stepContents.htmlSlides);
+      }
+      
       // Recompose stepHistory based on stepContents
       const newStepHistory: StepType[] = ["setup"]; // Always start with setup
       
       // Check which steps have content and add them to history in order
-      const steps: StepType[] = ["setup", "outline", "speech", "slides"];
+      const steps: StepType[] = ["setup", "outline", "speech", "slides", "htmlSlides"];
       
       for (const step of steps) {
         if (step === "setup") continue; // Already added
@@ -621,7 +633,7 @@ export default function Home() {
     try {
       setIsGenerating(true);
       setStreamingContent("");
-      addToast("Generating professional slides...", "info");
+      addToast("Generating HTML slides...", "info");
       
       const { topic, audience, duration } = stepContents.setup;
       const slidesContent = stepContents.slides;
@@ -629,6 +641,10 @@ export default function Home() {
       // Create abort controller for cancellation
       const controller = new AbortController();
       setAbortController(controller);
+      
+      // Read example presentation HTML
+      const exampleResponse = await fetch("/example-presentation.html");
+      const exampleHtml = await exampleResponse.text();
       
       // Generate HTML slides using LLM with streaming
       const response = await fetch("/api/generate-slides-stream", {
@@ -642,6 +658,7 @@ export default function Home() {
           audience,
           duration,
           slidesContent,
+          exampleHtml,
           language: currentLanguage,
         }),
       });
@@ -678,19 +695,26 @@ export default function Home() {
               
               if (data.done) {
                 // Streaming completed
-                // Store HTML and show modal
-                setGeneratedSlidesHTML(data.content || fullContent);
-                setShowSlidesModal(true);
+                const htmlContent = data.content || fullContent;
+                
+                // Store HTML in stepContents
+                updateStepContent("htmlSlides", htmlContent);
+                
+                // Store HTML for modal
+                setGeneratedSlidesHTML(htmlContent);
+                
+                // Navigate to htmlSlides step
+                navigateToStep("htmlSlides");
                 
                 // Track successful generation
                 trackAction("generate_slides_html_stream_success", {
                   topic,
-                  htmlLength: (data.content || fullContent).length,
+                  htmlLength: htmlContent.length,
                   tokensUsed: data.tokensUsed,
                   duration: data.duration,
                 });
                 
-                addToast("Slides generated successfully! Preview and download as PDF.", "success");
+                addToast("HTML slides generated successfully!", "success");
               }
               
               if (data.error) {
@@ -794,6 +818,19 @@ export default function Home() {
             onUpdateSlides={(content) => updateStepContent("slides", content)}
             onCopyContent={handleCopyContent}
             onDownloadContent={handleDownloadContent}
+          />
+        );
+
+      case "htmlSlides":
+        return (
+          <HtmlSlidesStep
+            htmlSlides={stepContents.htmlSlides}
+            setup={stepContents.setup}
+            onBack={() => navigateToStep("slides")}
+            onShowPreview={() => setShowSlidesModal(true)}
+            onCopyContent={handleCopyContent}
+            onDownloadContent={handleDownloadContent}
+            onUpdateHtmlSlides={(content) => updateStepContent("htmlSlides", content)}
           />
         );
 

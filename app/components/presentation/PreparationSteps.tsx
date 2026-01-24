@@ -1,6 +1,6 @@
 "use client";
 
-import { TrendingUp, CheckCircle, Target, Layout, Mic } from "lucide-react";
+import { TrendingUp, CheckCircle, Target, Layout, Mic, FileText, Eye } from "lucide-react";
 import { PresentationStep, STEPS, StepType } from "@/app/types/steps";
 
 const steps: PresentationStep[] = [
@@ -42,14 +42,26 @@ const steps: PresentationStep[] = [
   },
   {
     id: STEPS[3],
-    title: "Final Review",
-    description: "Polish and perfect your presentation",
-    icon: <CheckCircle className="h-6 w-6" />,
+    title: "HTML Slides Generation",
+    description: "Generate HTML presentation from slide content",
+    icon: <FileText className="h-6 w-6" />,
     completed: false,
     tips: [
-      "Review all content for consistency",
-      "Practice timing and delivery",
-      "Prepare for questions and feedback",
+      "Review the generated HTML slides",
+      "Make any final adjustments",
+      "Prepare for final presentation",
+    ],
+  },
+  {
+    id: STEPS[4],
+    title: "Review & Download",
+    description: "Preview and download HTML presentation slides",
+    icon: <Eye className="h-6 w-6" />,
+    completed: false,
+    tips: [
+      "Preview the generated HTML slides",
+      "Download or copy the HTML code",
+      "Test the presentation in a browser",
     ],
   },
 ];
