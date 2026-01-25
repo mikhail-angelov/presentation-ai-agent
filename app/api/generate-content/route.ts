@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { sessionStore } from "@/app/lib/session/store";
 import { SESSION_COOKIE_NAME } from "@/app/types/session";
 import { runAgentStream } from "@/app/lib/agent/deepseekAgent";
+import { sessionStore, generateUUID } from "@/app/lib/session/supabaseStore";
 
 // Streaming endpoint for real-time LLM feedback
 export async function POST(request: NextRequest) {
@@ -21,9 +21,7 @@ export async function POST(request: NextRequest) {
     
     // Create session action for tracking
     const actionStartTime = Date.now();
-    const actionId = `act_${Date.now()}_${Math.random()
-      .toString(36)
-      .substr(2, 9)}`;
+    const actionId = generateUUID();
 
 
       const filteredKeyPoints = (keyPoints || []).filter((kp: string) => kp.trim() !== "");
@@ -102,6 +100,10 @@ Generate comprehensive presentation content.`;
             
             // Update session if exists
             if (sessionId) {
+              // Get current session to calculate total tokens
+              const currentSession = await sessionStore.getSession(sessionId);
+              const currentTotalTokens = currentSession?.metadata?.totalTokensUsed || 0;
+              
               sessionStore.updateSession(sessionId, {
                 action: {
                   id: actionId,
@@ -116,9 +118,7 @@ Generate comprehensive presentation content.`;
                 metadata: {
                   lastPresentationTopic: topic,
                   lastGeneratedAt: new Date().toISOString(),
-                  totalTokensUsed:
-                    (sessionStore.getSession(sessionId)?.metadata?.totalTokensUsed ||
-                      0) + tokensUsed,
+                  totalTokensUsed: currentTotalTokens + tokensUsed,
                 },
               });
             }
@@ -152,7 +152,7 @@ Generate comprehensive presentation content.`;
         error instanceof Error ? error.message : "Unknown error";
       sessionStore.updateSession(sessionId, {
         action: {
-          id: `err_${Date.now()}`,
+          id: generateUUID(),
           type: "generate_presentation_error",
           timestamp: new Date(),
           endpoint: "/api/generate-content",

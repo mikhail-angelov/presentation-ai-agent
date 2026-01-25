@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { sessionStore } from "@/app/lib/session/store";
+import { sessionStore } from "@/app/lib/session/supabaseStore";
 import {
   CreateSessionRequest,
   UpdateSessionRequest,
@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
     const clientUserAgent = request.headers.get("user-agent") || userAgent;
 
     // Create new session
-    const session = sessionStore.createSession({
+    const session = await sessionStore.createSession({
       userAgent: clientUserAgent,
       ipAddress: clientIp,
       userId,
@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
     console.error("Error creating session:", error);
     return NextResponse.json(
       { error: "Failed to create session" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -72,13 +72,13 @@ export async function GET(request: NextRequest) {
     }
 
     // Get session from store
-    const session = sessionStore.getSession(sessionId);
+    const session = await sessionStore.getSession(sessionId);
 
     if (!session) {
       // Clear invalid cookie
       const response = NextResponse.json(
         { error: "Session not found or expired" },
-        { status: 404 }
+        { status: 404 },
       );
       response.cookies.delete(SESSION_COOKIE_NAME);
       return response;
@@ -103,7 +103,7 @@ export async function GET(request: NextRequest) {
     console.error("Error getting session:", error);
     return NextResponse.json(
       { error: "Failed to get session" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -120,7 +120,7 @@ export async function PUT(request: NextRequest) {
     const { action, metadata } = body as UpdateSessionRequest;
 
     // Update session with new action or metadata
-    const updatedSession = sessionStore.updateSession(sessionId, {
+    const updatedSession = await sessionStore.updateSession(sessionId, {
       action,
       metadata,
     });
@@ -129,7 +129,7 @@ export async function PUT(request: NextRequest) {
       // Clear invalid cookie
       const response = NextResponse.json(
         { error: "Session not found or expired" },
-        { status: 404 }
+        { status: 404 },
       );
       response.cookies.delete(SESSION_COOKIE_NAME);
       return response;
@@ -148,7 +148,7 @@ export async function PUT(request: NextRequest) {
     console.error("Error updating session:", error);
     return NextResponse.json(
       { error: "Failed to update session" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -158,7 +158,7 @@ export async function DELETE(request: NextRequest) {
     const sessionId = request.cookies.get(SESSION_COOKIE_NAME)?.value;
 
     if (sessionId) {
-      sessionStore.deleteSession(sessionId);
+      await sessionStore.deleteSession(sessionId);
     }
 
     // Clear session cookie
@@ -173,7 +173,7 @@ export async function DELETE(request: NextRequest) {
     console.error("Error deleting session:", error);
     return NextResponse.json(
       { error: "Failed to delete session" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -188,20 +188,14 @@ export async function OPTIONS(request: NextRequest) {
     }
   }
 
-  const stats = sessionStore.getStats();
-  const sessions = Array.from(sessionStore["sessions"].values() || []);
+  const stats = await sessionStore.getStats();
 
+  // Get recent sessions from Supabase
+  // Note: We need to implement a method to get recent sessions
+  // For now, we'll return just the stats
   return NextResponse.json({
     success: true,
     stats,
-    sessions: sessions.map((session) => ({
-      id: session.id,
-      userId: session.userId,
-      createdAt: session.createdAt,
-      lastAccessed: session.lastAccessed,
-      actionCount: session.actions.length,
-      userAgent: session.userAgent?.substring(0, 50),
-      ipAddress: session.ipAddress,
-    })),
+    sessions: [], // Placeholder - would need to implement getUserSessions or similar
   });
 }

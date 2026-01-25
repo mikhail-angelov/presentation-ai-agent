@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
-import { sessionStore } from "@/app/lib/session/store";
 import { SESSION_COOKIE_NAME } from "@/app/types/session";
 import { runAgentStream } from "@/app/lib/agent/deepseekAgent";
+import { sessionStore, generateUUID } from "@/app/lib/session/supabaseStore";
 
 // Generate HTML/CSS slides using LLM with streaming
 async function* generateSlidesHTMLStream(
@@ -95,9 +95,7 @@ export async function POST(request: NextRequest) {
     // Get session ID from cookie
     const sessionId = request.cookies.get(SESSION_COOKIE_NAME)?.value;
     const actionStartTime = Date.now();
-    const actionId = `act_${Date.now()}_${Math.random()
-      .toString(36)
-      .substr(2, 9)}`;
+    const actionId = generateUUID();
 
     // Create a ReadableStream for streaming response
     const stream = new ReadableStream({
@@ -166,6 +164,10 @@ export async function POST(request: NextRequest) {
 
           // Update session with this action if session exists
           if (sessionId) {
+            // Get current session to calculate total tokens
+            const currentSession = await sessionStore.getSession(sessionId);
+            const currentTotalTokens = currentSession?.metadata?.totalTokensUsed || 0;
+            
             sessionStore.updateSession(sessionId, {
               action: {
                 id: actionId,
@@ -180,9 +182,7 @@ export async function POST(request: NextRequest) {
               metadata: {
                 lastPresentationTopic: topic,
                 lastGeneratedAt: new Date().toISOString(),
-                totalTokensUsed:
-                  (sessionStore.getSession(sessionId)?.metadata
-                    ?.totalTokensUsed || 0) + tokensUsed,
+                totalTokensUsed: currentTotalTokens + tokensUsed,
               },
             });
           }
@@ -211,7 +211,7 @@ export async function POST(request: NextRequest) {
               error instanceof Error ? error.message : "Unknown error";
             sessionStore.updateSession(sessionId, {
               action: {
-                id: `err_${Date.now()}`,
+                id: generateUUID(),
                 type: "generate_slides_html_stream_error",
                 timestamp: new Date(),
                 endpoint: "/api/generate-slides-stream",
