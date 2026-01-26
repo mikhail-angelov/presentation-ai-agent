@@ -16,5 +16,4 @@ export type UserGuide = {
 export type RateLimit = {
   used: number;
   limit: number;
-  resetTime: number;
 };

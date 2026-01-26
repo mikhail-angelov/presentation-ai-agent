@@ -9,7 +9,7 @@ import SlidesStep from "./components/presentation/SlidesStep";
 import HtmlSlidesStep from "./components/presentation/HtmlSlidesStep";
 import StreamingDisplay from "./components/presentation/StreamingDisplay";
 import PreparationSteps from "./components/presentation/PreparationSteps";
-import AIUsageMonitoring from "./components/monitoring/AIUsageMonitoring";
+import Footer from "./components/shared/Footer";
 import { LLMRequest, RateLimit } from "./types";
 import { useSession } from "./hooks/useSession";
 import { useTranslation } from "./hooks/useTranslation";
@@ -42,8 +42,7 @@ export default function Home() {
   const [llmRequests, setLlmRequests] = useState<LLMRequest[]>([]);
   const [rateLimit, setRateLimit] = useState<RateLimit>({
     used: 0,
-    limit: 100,
-    resetTime: Date.now() + 3600000,
+    limit: 10,
   });
   const [isGenerating, setIsGenerating] = useState(false);
   const [streamingContent, setStreamingContent] = useState("");
@@ -56,10 +55,18 @@ export default function Home() {
   // Helper functions
   const addLLMRequest = (request: LLMRequest) => {
     setLlmRequests((prev) => [request, ...prev.slice(0, 9)]);
-    setRateLimit((prev) => ({
-      ...prev,
-      used: Math.min(prev.used + 1, prev.limit),
-    }));
+    // Update used count based on session actions if available, otherwise increment
+    if (session) {
+      setRateLimit((prev) => ({
+        ...prev,
+        used: Math.min(session.actions.length, prev.limit),
+      }));
+    } else {
+      setRateLimit((prev) => ({
+        ...prev,
+        used: Math.min(prev.used + 1, prev.limit),
+      }));
+    }
   };
 
   const navigateToStep = (step: StepType) => {
@@ -782,6 +789,16 @@ export default function Home() {
     }
   }, [session, trackAction]);
 
+  // Update rate limit used count when session actions change
+  useEffect(() => {
+    if (session) {
+      setRateLimit((prev) => ({
+        ...prev,
+        used: Math.min(session.actions.length, prev.limit),
+      }));
+    }
+  }, [session?.actions?.length]);
+
   // Render step content based on active step
   const renderStepContent = () => {
     switch (activeStep) {
@@ -879,43 +896,49 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 p-4 md:p-8">
-      <div className="max-w-7xl mx-auto">
-        <Header
-          onSave={handleSavePresentation}
-          onLoad={handleLoadPresentation}
-        />
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 flex flex-col">
+      <div className="flex-1 overflow-y-auto p-4 md:p-8">
+        <div className="max-w-7xl mx-auto">
+          <Header
+            onSave={handleSavePresentation}
+            onLoad={handleLoadPresentation}
+          />
 
-        <StreamingDisplay
-          isGenerating={isGenerating}
-          streamingContent={streamingContent}
-          onCancel={handleCancelGeneration}
-        />
+          <StreamingDisplay
+            isGenerating={isGenerating}
+            streamingContent={streamingContent}
+            onCancel={handleCancelGeneration}
+          />
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
-          {/* Left Column - Current Step Content */}
-          <div className="lg:col-span-2 space-y-6 md:space-y-8">
-            {renderStepContent()}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
+            {/* Left Column - Current Step Content */}
+            <div className="lg:col-span-2 space-y-6 md:space-y-8">
+              {renderStepContent()}
+            </div>
+
+            {/* Right Column - Step-by-Step Flow */}
+            <div className="space-y-6 md:space-y-8">
+              <PreparationSteps
+                currentStep={activeStep}
+                stepHistory={stepHistory}
+                onStepClick={(step: StepType) => {
+                  if (step && stepHistory.includes(step)) {
+                    navigateToStep(step);
+                  }
+                }}
+              />
+            </div>
           </div>
+        </div>
+      </div>
 
-          {/* Right Column - Step-by-Step Flow & API Monitoring */}
-          <div className="space-y-6 md:space-y-8">
-            <PreparationSteps
-              currentStep={activeStep}
-              stepHistory={stepHistory}
-              onStepClick={(step: StepType) => {
-                if (step && stepHistory.includes(step)) {
-                  navigateToStep(step);
-                }
-              }}
-            />
-
-            <AIUsageMonitoring
-              rateLimit={rateLimit}
-              llmRequests={llmRequests}
-              session={session}
-            />
-          </div>
+      {/* Sticky Footer */}
+      <div className="sticky bottom-0 z-10 bg-white border-t border-gray-200">
+        <div className="max-w-7xl mx-auto">
+          <Footer
+            rateLimit={rateLimit}
+            session={session}
+          />
         </div>
       </div>
 
