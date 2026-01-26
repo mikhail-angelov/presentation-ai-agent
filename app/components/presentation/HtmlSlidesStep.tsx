@@ -34,11 +34,11 @@ export default function HtmlSlidesStep({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-            <button
+          <button
             onClick={onBack}
             className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
           >
@@ -54,7 +54,7 @@ export default function HtmlSlidesStep({
       </div>
 
       {/* Content */}
-      <div className="bg-white rounded-xl shadow-lg p-6">
+      <div className="bg-white rounded-2xl shadow-lg p-6 md:p-8 flex flex-col flex-1">
         <div className="flex items-center gap-3 mb-6">
           <div className="p-3 bg-blue-100 rounded-lg">
             <FileText className="h-6 w-6 text-blue-600" />
@@ -111,7 +111,7 @@ export default function HtmlSlidesStep({
         </div>
 
         {/* HTML Preview */}
-        <div className="border border-gray-200 rounded-lg overflow-hidden">
+        <div className="border border-gray-200 rounded-lg overflow-hidden flex flex-col flex-1">
           <div className="bg-gray-50 px-4 py-2 border-b border-gray-200">
             <div className="flex items-center justify-between">
               <span className="font-medium text-gray-700">{t("htmlSlidesStep.preview.title")}</span>
@@ -120,7 +120,7 @@ export default function HtmlSlidesStep({
               </span>
             </div>
           </div>
-          <div className="p-4 bg-gray-900 text-gray-100 font-mono text-sm overflow-x-auto">
+          <div className="p-4 bg-gray-900 text-gray-100 font-mono text-sm overflow-x-auto flex-1">
             <textarea
               value={htmlSlides}
               onChange={(e) => {
@@ -128,15 +128,14 @@ export default function HtmlSlidesStep({
                   onUpdateHtmlSlides(e.target.value);
                 }
               }}
-              rows={15}
-              className="w-full bg-gray-900 text-gray-100 font-mono text-sm border-0 focus:ring-0 focus:outline-none resize-y"
+              className="w-full h-full bg-gray-900 text-gray-100 font-mono text-sm border-0 focus:ring-0 focus:outline-none resize-none"
               spellCheck={false}
             />
           </div>
         </div>
 
         {/* Instructions */}
-        <div className="mt-8 p-4 bg-blue-50 rounded-lg">
+        <div className="mt-4 p-4 bg-blue-50 rounded-lg">
           <h3 className="font-semibold text-blue-900 mb-2">{t("htmlSlidesStep.instructions.title")}</h3>
           <ul className="text-blue-800 space-y-1 text-sm">
             <li>• {t("htmlSlidesStep.instructions.preview")}</li>

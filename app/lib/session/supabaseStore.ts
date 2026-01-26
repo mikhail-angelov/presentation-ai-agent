@@ -183,13 +183,18 @@ class SupabaseSessionStore {
     // Add action if provided
     if (request.action) {
       const actionId = this.generateActionId();
+      // Ensure timestamp is a Date object
+      const timestamp = request.action.timestamp instanceof Date 
+        ? request.action.timestamp 
+        : new Date(request.action.timestamp);
+      
       const { error } = await supabase
         .from('user_actions')
         .insert({
           id: actionId,
           session_id: sessionId,
           type: request.action.type,
-          timestamp: request.action.timestamp.toISOString(),
+          timestamp: timestamp.toISOString(),
           endpoint: request.action.endpoint,
           data: request.action.data || {},
           result: request.action.result || {},
@@ -200,7 +205,12 @@ class SupabaseSessionStore {
       if (error) {
         console.error('Error adding action to Supabase:', error);
       } else {
-        session.actions.unshift(request.action);
+        // Update the action with the proper timestamp for in-memory storage
+        const actionWithProperTimestamp = {
+          ...request.action,
+          timestamp: timestamp
+        };
+        session.actions.unshift(actionWithProperTimestamp);
         // Keep only last 100 actions in memory
         if (session.actions.length > 100) {
           session.actions = session.actions.slice(0, 100);

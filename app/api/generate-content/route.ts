@@ -128,8 +128,13 @@ Generate comprehensive presentation content.`;
             controller.close();
           } catch (error) {
             console.error("Error in streaming:", error);
-            controller.enqueue(`data: ${JSON.stringify({ error: error instanceof Error ? error.message : "Failed to generate content" })}\n\n`);
-            controller.close();
+            try {
+              controller.enqueue(`data: ${JSON.stringify({ error: error instanceof Error ? error.message : "Failed to generate content" })}\n\n`);
+              controller.close();
+            } catch (closeError) {
+              // Controller might already be closed, ignore
+              console.error("Error closing controller:", closeError);
+            }
           }
         },
       });

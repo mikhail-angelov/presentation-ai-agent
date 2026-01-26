@@ -100,7 +100,7 @@ export default function PreparationSteps({
   };
 
   return (
-    <div className="bg-white rounded-2xl shadow-lg p-6 md:p-8">
+    <div className="bg-white rounded-2xl shadow-lg p-6 md:p-8 flex flex-col ">
       <div className="flex items-center gap-3 mb-6">
         <TrendingUp className="h-7 w-7 text-purple-600" />
         <h2 className="text-xl md:text-2xl font-bold text-gray-900">
@@ -108,7 +108,7 @@ export default function PreparationSteps({
         </h2>
       </div>
 
-      <div className="space-y-4">
+      <div className="flex-1 overflow-y-auto space-y-4">
         {steps.map((step) => {
           const completed = getStepCompletion(step.id);
           const current = step.id === currentStep;

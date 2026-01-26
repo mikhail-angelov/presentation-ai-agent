@@ -211,14 +211,13 @@ export default function Home() {
         timestamp: data.timestamp || "unknown",
       });
 
-      addToast(
-        t("toasts.presentationLoaded"),
-        "success",
-      );
+      addToast(t("toasts.presentationLoaded"), "success");
     } catch (error) {
       console.error("Error loading presentation:", error);
       addToast(
-        t("toasts.loadPresentationFailed", { error: error instanceof Error ? error.message : "Invalid file format" }),
+        t("toasts.loadPresentationFailed", {
+          error: error instanceof Error ? error.message : "Invalid file format",
+        }),
         "error",
       );
     }
@@ -764,7 +763,9 @@ export default function Home() {
     } catch (error) {
       console.error("Error generating slides:", error);
       addToast(
-        t("toasts.generateSlidesFailed", { error: error instanceof Error ? error.message : "Unknown error" }),
+        t("toasts.generateSlidesFailed", {
+          error: error instanceof Error ? error.message : "Unknown error",
+        }),
         "error",
       );
 
@@ -787,7 +788,7 @@ export default function Home() {
         screenResolution: `${window.screen.width}x${window.screen.height}`,
       });
     }
-  }, [session, trackAction]);
+  }, []);
 
   // Update rate limit used count when session actions change
   useEffect(() => {
@@ -896,28 +897,27 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 flex flex-col">
-      <div className="flex-1 overflow-y-auto p-4 md:p-8">
-        <div className="max-w-7xl mx-auto">
+    <div className="min-h-screen h-screen bg-gradient-to-br from-gray-50 to-blue-50 flex flex-col">
+      <div className="flex-1 flex flex-col p-4 md:p-8 h-full overflow-hidden">
+        <div className="max-w-7xl mx-auto flex flex-col h-full">
           <Header
             onSave={handleSavePresentation}
             onLoad={handleLoadPresentation}
           />
 
-          <StreamingDisplay
-            isGenerating={isGenerating}
-            streamingContent={streamingContent}
-            onCancel={handleCancelGeneration}
-          />
-
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
+          <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8 min-h-0">
+            <StreamingDisplay
+              isGenerating={isGenerating}
+              streamingContent={streamingContent}
+              onCancel={handleCancelGeneration}
+            />
             {/* Left Column - Current Step Content */}
-            <div className="lg:col-span-2 space-y-6 md:space-y-8">
+            <div className="lg:col-span-2 space-y-6 md:space-y-8 overflow-y-auto">
               {renderStepContent()}
             </div>
 
             {/* Right Column - Step-by-Step Flow */}
-            <div className="space-y-6 md:space-y-8">
+            <div className="space-y-6 md:space-y-8 overflow-y-auto">
               <PreparationSteps
                 currentStep={activeStep}
                 stepHistory={stepHistory}
@@ -932,13 +932,10 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Sticky Footer */}
-      <div className="sticky bottom-0 z-10 bg-white border-t border-gray-200">
+      {/* Footer - Always visible at bottom */}
+      <div className="bg-white border-t border-gray-200">
         <div className="max-w-7xl mx-auto">
-          <Footer
-            rateLimit={rateLimit}
-            session={session}
-          />
+          <Footer rateLimit={rateLimit} session={session} />
         </div>
       </div>
 

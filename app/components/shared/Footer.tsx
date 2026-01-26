@@ -20,7 +20,7 @@ export default function Footer({ rateLimit, session }: FooterProps) {
 
   return (
     <footer className="bg-white border-t border-gray-200 py-3 px-4 md:px-6">
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-[1600px] mx-auto">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
           {/* Left side: Rate limit and session info */}
           <div className="flex flex-wrap items-center gap-4">
