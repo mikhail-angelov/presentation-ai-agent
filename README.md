@@ -15,30 +15,49 @@ Prez AI Presenter is a web application that helps users create compelling presen
 ## Features
 
 ### 1. Modern UI/UX
-- Responsive design with Tailwind CSS
-- Gradient backgrounds and card-based layout
-- Interactive components with hover states
-- Mobile-friendly interface
+- **Responsive Design**: Fully responsive interface using Tailwind CSS
+- **Card-Based Layout**: Clean, modern card design with shadows and rounded corners
+- **Interactive Components**: Hover states, transitions, and interactive elements
+- **Mobile-First Approach**: Optimized for all screen sizes
+- **Internationalization**: Support for English and Russian languages
+- **Toast Notifications**: User feedback with success/error/info messages
 
-### 2. Presentation Preparation Flow
-1. **Define Your Topic** - Clearly articulate presentation subject
-2. **Know Your Audience** - Understand who you're presenting to
-3. **Structure Your Content** - Organize presentation logically
-4. **Design Visuals** - Create compelling slides and visuals
-5. **Practice Delivery** - Rehearse your presentation
-6. **Final Review** - Polish and perfect your presentation
+### 2. Step-by-Step Presentation Creation
+1. **Setup**: Define topic, audience, duration, and key points
+2. **Outline Generation**: AI-powered presentation structure creation
+3. **Speech Creation**: Convert outline to natural spoken presentation
+4. **Slides Creation**: Transform speech into slide content
+5. **HTML Slides Generation**: Create interactive HTML presentation
+6. **Review & Download**: Preview, edit, and download final presentation
 
 ### 3. AI-Powered Content Generation
-- Generate structured presentation outlines
-- Customized content based on topic, audience, and duration
-- Design and delivery tips
-- Mock API integration with realistic response simulation
+- **DeepSeek LLM Integration**: Real AI content generation using DeepSeek API
+- **Streaming Responses**: Real-time content streaming with progress indicators
+- **Multi-Step Generation**: Sequential content generation with context preservation
+- **Language Support**: Content generation in multiple languages
+- **Error Handling**: Robust error handling with user-friendly messages
 
-### 4. Usage Monitoring
-- Real-time API request tracking
-- Rate limit visualization
-- Request status and token usage
-- Historical request log
+### 4. Session Management
+- **User Session Tracking**: Automatic session creation and management
+- **Action Logging**: Track all user actions for analytics
+- **Supabase Integration**: PostgreSQL database for session storage
+- **Rate Limiting**: Usage tracking and rate limit enforcement
+- **Session Persistence**: Save and load presentation progress
+
+### 5. Advanced UI Components
+- **Independent Scrolling Panels**: Left and right panels scroll independently
+- **Full Height Utilization**: Components extend to fill available space
+- **Editable Content Areas**: All generated content is editable
+- **Preview Modals**: Interactive HTML slides preview
+- **Progress Tracking**: Visual step completion indicators
+- **Regeneration Controls**: Regenerate any step with updated content
+
+### 6. File Management
+- **Save/Load Presentations**: Export and import presentation JSON files
+- **HTML Export**: Download complete HTML presentations
+- **Content Copy**: Copy any content to clipboard
+- **Template System**: HTML template and example slides
+- **File Size Tracking**: Automatic file size calculation
 
 ## Project Structure
 
@@ -46,32 +65,92 @@ Prez AI Presenter is a web application that helps users create compelling presen
 prez-ai-next/
 ├── app/
 │   ├── api/
-│   │   └── generate-content/
-│   │       └── route.ts          # AI content generation API
+│   │   ├── generate-content/          # AI content generation API
+│   │   │   └── route.ts
+│   │   ├── generate-slides-stream/    # HTML slides streaming API
+│   │   │   └── route.ts
+│   │   └── sessions/                  # Session management API
+│   │       └── route.ts
 │   ├── components/
-│   │   ├── presentation/         # Presentation-related components
+│   │   ├── presentation/              # Presentation step components
 │   │   │   ├── PresentationSetup.tsx
+│   │   │   ├── OutlineStep.tsx
+│   │   │   ├── SpeechStep.tsx
+│   │   │   ├── SlidesStep.tsx
+│   │   │   ├── HtmlSlidesStep.tsx
+│   │   │   ├── PreparationSteps.tsx
 │   │   │   ├── UserGuides.tsx
-│   │   │   └── PreparationSteps.tsx
-│   │   ├── monitoring/           # Monitoring components
-│   │   │   └── AIUsageMonitoring.tsx
-│   │   └── shared/              # Shared components
-│   │       └── Header.tsx
-│   ├── types/
-│   │   └── index.ts             # TypeScript type definitions
-│   ├── page.tsx                 # Main page
-│   └── layout.tsx               # Root layout
-├── public/                      # Static assets
-└── package.json                 # Dependencies
+│   │   │   └── StreamingDisplay.tsx
+│   │   ├── shared/                    # Shared components
+│   │   │   ├── Header.tsx
+│   │   │   ├── Footer.tsx
+│   │   │   ├── Toast.tsx
+│   │   │   └── SlidesPreviewModal.tsx
+│   │   └── monitoring/
+│   │       └── AIUsageMonitoring.tsx
+│   ├── contexts/                      # React contexts
+│   │   └── ToastContext.tsx
+│   ├── hooks/                         # Custom hooks
+│   │   ├── useSession.ts
+│   │   └── useTranslation.ts
+│   ├── lib/                           # Business logic
+│   │   ├── agent/                     # AI agent integrations
+│   │   │   ├── deepseekAgent.ts
+│   │   │   ├── prompts.ts
+│   │   │   └── yandexML.ts
+│   │   └── session/                   # Session management
+│   │       ├── store.ts
+│   │       └── supabaseStore.ts
+│   ├── types/                         # TypeScript definitions
+│   │   ├── index.ts
+│   │   ├── steps.ts
+│   │   └── session.ts
+│   ├── page.tsx                       # Main page
+│   ├── layout.tsx                     # Root layout
+│   └── globals.css                    # Global styles
+├── public/
+│   ├── locales/                       # i18n translations
+│   │   ├── en/
+│   │   │   └── common.json
+│   │   └── ru/
+│   │       └── common.json
+│   ├── presentation.html              # HTML template
+│   └── example-slides.html            # Example slides
+├── scripts/                           # Database scripts
+│   ├── create_sessions_schema.sql
+│   └── run_supabase_migration.js
+├── package.json
+├── next.config.ts
+├── tsconfig.json
+├── vitest.config.ts
+├── README.md
+└── README_SUPABASE.md
 ```
 
 ## Technical Stack
 
+### Frontend
 - **Next.js 14** - React framework with App Router
-- **TypeScript** - Type-safe JavaScript
+- **TypeScript** - Type-safe JavaScript development
 - **Tailwind CSS** - Utility-first CSS framework
-- **Lucide React** - Icon library
-- **React Hooks** - State management
+- **Lucide React** - Icon library for consistent UI
+- **React Hooks** - State and effect management
+
+### Backend & APIs
+- **DeepSeek LLM** - AI content generation via API
+- **Supabase** - PostgreSQL database for session management
+- **Server-Sent Events (SSE)** - Real-time content streaming
+- **REST APIs** - Structured API endpoints for data management
+
+### Development Tools
+- **ESLint** - Code linting and quality enforcement
+- **Prettier** - Code formatting consistency
+- **Vitest** - Testing framework
+- **PostCSS** - CSS processing
+
+### Internationalization
+- **i18n** - Multi-language support (English/Russian)
+- **JSON-based translations** - Easy translation management
 
 ## Getting Started
 
@@ -101,36 +180,73 @@ npm run dev
 
 ## API Integration
 
-The application includes a mock API endpoint at `/api/generate-content` that simulates AI-powered presentation content generation.
+The application includes real API endpoints for AI-powered presentation content generation and session management.
 
-### API Endpoints
+### Core API Endpoints
 
-**POST /api/generate-content**
+#### 1. **POST /api/generate-content** - AI Content Generation
+Generates presentation content using DeepSeek LLM with streaming response.
+
+**Request:**
+```json
+{
+  "topic": "Artificial Intelligence in Healthcare",
+  "audience": "Medical professionals",
+  "duration": "15",
+  "keyPoints": ["Diagnosis assistance", "Treatment optimization", "Patient monitoring"],
+  "stepType": "outline|speech|slides",
+  "previousContent": "Optional previous step content",
+  "language": "en|ru"
+}
+```
+
+**Response:** Server-Sent Events (SSE) stream with chunks:
+```json
+data: {"chunk": "Generated content chunk..."}
+data: {"done": true, "content": "Full generated content", "tokensUsed": 250, "duration": 1500}
+```
+
+#### 2. **POST /api/generate-slides-stream** - HTML Slides Generation
+Generates interactive HTML presentation slides with streaming.
+
+**Request:**
 ```json
 {
   "topic": "Presentation Topic",
   "audience": "Target Audience",
   "duration": "10",
-  "keyPoints": ["Point 1", "Point 2"]
+  "slidesContent": "Markdown slides content",
+  "exampleHtml": "Example HTML template",
+  "templateHtml": "Base HTML template",
+  "language": "en|ru"
 }
 ```
 
-Response:
-```json
-{
-  "success": true,
-  "content": "Generated presentation content...",
-  "metadata": {
-    "topic": "...",
-    "audience": "...",
-    "duration": "...",
-    "keyPoints": [...],
-    "generatedAt": "...",
-    "tokensUsed": 250,
-    "estimatedReadingTime": "1 minutes"
-  }
-}
-```
+**Response:** SSE stream with HTML content chunks.
+
+#### 3. **Session Management APIs**
+- **GET /api/sessions** - Get current session
+- **PUT /api/sessions** - Update session with actions
+- **Automatic session creation** on first page load
+
+### Environment Variables
+
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `DEEPSEEK_API_KEY` | DeepSeek LLM API key | Yes |
+| `SUPABASE_URL` | Supabase project URL | Yes (for session storage) |
+| `SUPABASE_ANON_KEY` | Supabase anonymous key | Yes (for session storage) |
+| `YANDEX_API_KEY` | Yandex ML API key | Optional (alternative AI) |
+
+### Database Schema
+
+The application uses Supabase PostgreSQL with the following schema (see `scripts/create_sessions_schema.sql`):
+
+1. **sessions table**: User sessions with metadata
+2. **user_actions table**: Tracked user actions and AI usage
+3. **Indexes**: Performance optimization for common queries
+4. **Views**: Session statistics and recent sessions
+5. **Functions**: Automatic cleanup of expired sessions
 
 ## Integration with Existing Prez AI
 

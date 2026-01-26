@@ -170,7 +170,7 @@
   },
   "htmlSlidesStep": {
     "title": "HTML Presentation Slides",
-    "subtitle": "Your AI-generated HTML slides are ready. Preview, copy, or download them.",
+    "subtitle": "Your AI-generated HTML slides are ready.",
     "backButton": "Back to Slides",
     "badge": "HTML Slides",
     "stats": {
@@ -186,14 +186,6 @@
     "preview": {
       "title": "HTML Code Preview",
       "subtitle": "Full HTML code - editable"
-    },
-    "instructions": {
-      "title": "How to use your HTML slides:",
-      "preview": "Click \"Preview Slides\" to see your presentation in a modal",
-      "download": "Click \"Download HTML\" to save the file to your computer",
-      "open": "Open the downloaded HTML file in any web browser",
-      "navigate": "Use the presentation by navigating with arrow keys or scroll",
-      "selfContained": "The HTML file is self-contained with all CSS styles included"
     }
   },
   "streamingDisplay": {

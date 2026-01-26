@@ -906,13 +906,13 @@ export default function Home() {
           />
 
           <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8 min-h-0">
-            <StreamingDisplay
-              isGenerating={isGenerating}
-              streamingContent={streamingContent}
-              onCancel={handleCancelGeneration}
-            />
             {/* Left Column - Current Step Content */}
             <div className="lg:col-span-2 space-y-6 md:space-y-8 overflow-y-auto">
+              <StreamingDisplay
+                isGenerating={isGenerating}
+                streamingContent={streamingContent}
+                onCancel={handleCancelGeneration}
+              />
               {renderStepContent()}
             </div>
 
