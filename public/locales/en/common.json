@@ -207,5 +207,29 @@
       "copy": "Copy HTML",
       "download": "Download HTML"
     }
+  },
+  "feedback": {
+    "title": "Share Your Thoughts",
+    "subtitle": "We'd love to hear from you!",
+    "typeLabel": "What would you like to share?",
+    "messageLabel": "Your message",
+    "messagePlaceholder": "Tell us what's on your mind...",
+    "emailLabel": "Email (optional)",
+    "emailOptional": "For follow-up if needed",
+    "cancel": "Cancel",
+    "submit": "Send Feedback",
+    "sending": "Sending...",
+    "privacyNote": "Your feedback helps us improve. We respect your privacy.",
+    "button": "Feedback",
+    "thankYou": "Thank you for your feedback!",
+    "submitFailed": "Failed to submit feedback",
+    "types": {
+      "feedback": "Feedback",
+      "feedbackDesc": "Share your thoughts and experience",
+      "recommendation": "Recommendation",
+      "recommendationDesc": "Suggest improvements or new features",
+      "issue": "Issue",
+      "issueDesc": "Report a bug or problem"
+    }
   }
 }

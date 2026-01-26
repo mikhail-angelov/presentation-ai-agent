@@ -1,9 +1,11 @@
 "use client";
 
-import { Presentation, Zap, User, Menu, Save, FolderOpen } from "lucide-react";
-import { SessionData } from "@/app/hooks/useSession";
+import { Presentation, Zap, Menu, Save, FolderOpen, Sparkles } from "lucide-react";
 import { useTranslation } from "@/app/hooks/useTranslation";
+import { useSession } from "@/app/hooks/useSession";
 import LanguageSwitcher from "./LanguageSwitcher";
+import FeedbackModal from "./FeedbackModal";
+import { useToast } from "@/app/contexts/ToastContext";
 import { useState, useRef, useEffect } from "react";
 
 interface HeaderProps {
@@ -13,7 +15,10 @@ interface HeaderProps {
 
 export default function Header({ onSave, onLoad }: HeaderProps) {
   const { t } = useTranslation();
+  const { addToast } = useToast();
+  const { session } = useSession();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [feedbackModalOpen, setFeedbackModalOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -69,73 +74,175 @@ export default function Header({ onSave, onLoad }: HeaderProps) {
     };
   }, [menuOpen]);
 
+  const handleFeedbackSubmit = async (feedback: {
+    type: "feedback" | "recommendation" | "issue";
+    message: string;
+    email?: string;
+  }) => {
+    try {
+      // Include session ID if available
+      const feedbackWithSession = {
+        ...feedback,
+        session_id: session?.id || null,
+      };
+
+      // Send feedback to API
+      const response = await fetch('/api/feedback', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(feedbackWithSession),
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        // Show success toast
+        addToast(
+          t("feedback.submit") + " " + t("feedback.thankYou"),
+          'success',
+          5000
+        );
+      } else {
+        // Show error toast
+        addToast(
+          t("feedback.submitFailed") + ": " + (result.error || 'Unknown error'),
+          'error',
+          5000
+        );
+      }
+    } catch (error) {
+      console.error('Error submitting feedback:', error);
+      // Show error toast
+      addToast(
+        t("feedback.submitFailed") + ": " + (error instanceof Error ? error.message : 'Network error'),
+        'error',
+        5000
+      );
+    }
+  };
+
   return (
-    <header className="mb-8 md:mb-12">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-blue-100 rounded-lg">
-            <Presentation className="h-8 w-8 text-blue-600" />
-          </div>
-          <div>
-            <div className="flex gap-4 items-center">
-              <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
-                {t('app.title')}
-              </h1>
-              <div className="px-4 h-[24px] bg-blue-600 text-white rounded-full font-medium">
-                Beta
-              </div>
+    <>
+      <header className="mb-8 md:mb-12">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-blue-100 rounded-lg">
+              <Presentation className="h-8 w-8 text-blue-600" />
             </div>
-            <div className="hidden md:flex items-center gap-2">
-              <Zap className="h-4 w-4 text-yellow-500" />
-              <span className="text-sm font-medium">{t('app.subtitle')}</span>
-            </div>
-          </div>
-        </div>
-        <div className="flex items-center gap-4">
-          <LanguageSwitcher />
-          
-          {/* Hamburger menu button and dropdown */}
-          <div className="relative" ref={menuRef}>
-            <button
-              onClick={() => setMenuOpen(!menuOpen)}
-              className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
-              aria-label={t('menu.menu')}
-            >
-              <Menu className="h-6 w-6 text-gray-700" />
-            </button>
-            
-            {menuOpen && (
-              <div className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
-                <div className="py-1">
-                  <button
-                    onClick={handleSaveClick}
-                    className="flex items-center gap-3 w-full px-4 py-3 text-left hover:bg-gray-50 transition-colors"
-                  >
-                    <Save className="h-4 w-4 text-gray-600" />
-                    <span className="text-gray-800 font-medium">{t('menu.savePresentation')}</span>
-                  </button>
-                  <button
-                    onClick={handleLoadClick}
-                    className="flex items-center gap-3 w-full px-4 py-3 text-left hover:bg-gray-50 transition-colors"
-                  >
-                    <FolderOpen className="h-4 w-4 text-gray-600" />
-                    <span className="text-gray-800 font-medium">{t('menu.loadPresentation')}</span>
-                  </button>
+            <div>
+              <div className="flex gap-4 items-center">
+                <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
+                  {t('app.title')}
+                </h1>
+                <div className="px-4 h-[24px] bg-blue-600 text-white rounded-full font-medium">
+                  Beta
                 </div>
               </div>
-            )}
+              <div className="hidden md:flex items-center gap-2">
+                <Zap className="h-4 w-4 text-yellow-500" />
+                <span className="text-sm font-medium">{t('app.subtitle')}</span>
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-4">
+            {/* Sparkling Feedback Button */}
+            <button
+              onClick={() => setFeedbackModalOpen(true)}
+              className="relative flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-medium rounded-lg hover:from-purple-600 hover:to-pink-600 transition-all shadow-lg hover:shadow-xl active:scale-95 group overflow-hidden"
+              aria-label="Share feedback"
+            >
+              {/* Sparkling animation dots */}
+              <div className="absolute inset-0 overflow-hidden">
+                {[...Array(8)].map((_, i) => (
+                  <div
+                    key={i}
+                    className="absolute w-1 h-1 bg-white rounded-full animate-sparkle"
+                    style={{
+                      left: `${Math.random() * 100}%`,
+                      top: `${Math.random() * 100}%`,
+                      animationDelay: `${Math.random() * 2}s`,
+                      animationDuration: `${1 + Math.random() * 2}s`,
+                    }}
+                  />
+                ))}
+              </div>
+              <Sparkles className="h-4 w-4 relative z-10 group-hover:rotate-12 transition-transform" />
+              <span className="relative z-10 hidden sm:inline">
+                {t("feedback.button")}
+              </span>
+              <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600 opacity-0 group-hover:opacity-100 transition-opacity" />
+            </button>
+
+            <LanguageSwitcher />
             
-            {/* Hidden file input for load */}
-            <input
-              type="file"
-              ref={fileInputRef}
-              onChange={handleFileChange}
-              accept=".json,application/json"
-              className="hidden"
-            />
+            {/* Hamburger menu button and dropdown */}
+            <div className="relative" ref={menuRef}>
+              <button
+                onClick={() => setMenuOpen(!menuOpen)}
+                className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                aria-label={t('menu.menu')}
+              >
+                <Menu className="h-6 w-6 text-gray-700" />
+              </button>
+              
+              {menuOpen && (
+                <div className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
+                  <div className="py-1">
+                    <button
+                      onClick={handleSaveClick}
+                      className="flex items-center gap-3 w-full px-4 py-3 text-left hover:bg-gray-50 transition-colors"
+                    >
+                      <Save className="h-4 w-4 text-gray-600" />
+                      <span className="text-gray-800 font-medium">{t('menu.savePresentation')}</span>
+                    </button>
+                    <button
+                      onClick={handleLoadClick}
+                      className="flex items-center gap-3 w-full px-4 py-3 text-left hover:bg-gray-50 transition-colors"
+                    >
+                      <FolderOpen className="h-4 w-4 text-gray-600" />
+                      <span className="text-gray-800 font-medium">{t('menu.loadPresentation')}</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+              
+              {/* Hidden file input for load */}
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileChange}
+                accept=".json,application/json"
+                className="hidden"
+              />
+            </div>
           </div>
         </div>
-      </div>
-    </header>
+      </header>
+
+      <FeedbackModal
+        isOpen={feedbackModalOpen}
+        onClose={() => setFeedbackModalOpen(false)}
+        onSubmit={handleFeedbackSubmit}
+      />
+
+      <style jsx global>{`
+        @keyframes sparkle {
+          0%, 100% {
+            opacity: 0;
+            transform: scale(0);
+          }
+          50% {
+            opacity: 1;
+            transform: scale(1);
+          }
+        }
+
+        .animate-sparkle {
+          animation: sparkle 2s infinite;
+        }
+      `}</style>
+    </>
   );
 }
