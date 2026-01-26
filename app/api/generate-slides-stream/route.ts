@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { SESSION_COOKIE_NAME } from "@/app/types/session";
-import { runAgentStream } from "@/app/lib/agent/deepseekAgent";
+import { runAgentStreamWithTools } from "@/app/lib/agent/deepseekAgentWithTools";
 import { sessionStore, generateUUID } from "@/app/lib/session/supabaseStore";
 
 // Generate HTML/CSS slides using LLM with streaming
@@ -37,10 +37,17 @@ IMPORTANT INSTRUCTIONS:
    - A title (use <h1> or <h2> with appropriate classes)
    - Content (paragraphs, lists, etc.)
    - A slide number indicator (use <div class="slide-number">Slide X of Y</div>)
-7. First slide should have class="slide first-slide" and be a title slide
+7. First slide should have class="slide first-slide" and be a title slide - MUST include an AI-generated image that visually represents the main presentation topic
 8. Last slide should have class="slide last-slide" and be a conclusion slide
-9. Other slides should have class="slide"
+9. Other slides should have class="slide" - include images where they help explain concepts or make the slide more engaging
 10. Make sure content is well-organized and visually appealing
+
+IMAGE REQUIREMENTS:
+- FIRST SLIDE MUST include an image that visually represents the main presentation topic
+- Other slides should include images where they help explain concepts or make the slide more engaging
+- Images should be relevant to the slide content
+- Include descriptive alt text for accessibility
+- Use <img> tags with appropriate styling
 
 AVAILABLE CSS CLASSES FROM TEMPLATE:
 - .slide (base slide class)
@@ -62,7 +69,7 @@ AVAILABLE CSS CLASSES FROM TEMPLATE:
 Generate ONLY the slide sections. Do not include <!DOCTYPE html>, <html>, <head>, <style>, or <body> tags. Do not include any explanations or markdown formatting.`;
 
   try {
-    const stream = runAgentStream(prompt, "html_slides", language);
+    const stream = runAgentStreamWithTools(prompt, "html_slides", language);
     for await (const chunk of stream) {
       yield chunk;
     }
