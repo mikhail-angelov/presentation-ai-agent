@@ -111,7 +111,6 @@ Generate COMPLETE, professional HTML/CSS code for presentation slides with the f
 5. Image requirements:
    - FIRST SLIDE MUST include an AI-generated image that visually represents the main presentation topic
    - Other slides should include images where they help explain concepts or make the slide more engaging
-   - Use the generate_image tool to create images when needed
    - Images should be relevant to the slide content
    - Include descriptive alt text for accessibility
 
@@ -131,13 +130,17 @@ Generate COMPLETE, professional HTML/CSS code for presentation slides with the f
    - DO NOT truncate or leave the HTML incomplete
    - Ensure all tags are properly closed
 
-8. IMAGE GENERATION INSTRUCTIONS:
-   - When you need an image, use the generate_image tool with a detailed prompt
-   - For the first slide: generate an image that visually represents the main presentation topic
-   - For other slides: generate images that illustrate key concepts or enhance understanding
+8. IMAGE PLACEHOLDER INSTRUCTIONS:
+   - When you need an image, insert a special placeholder comment in the HTML
+   - Placeholder format: <!-- IMAGE_PLACEHOLDER:prompt_text:description -->
+   - For the first slide: include a placeholder for an image that visually represents the main presentation topic
+   - For other slides: include placeholders for images that illustrate key concepts or enhance understanding
    - Image prompts should be descriptive and specific
-   - After generating an image, include it in the HTML using base64 data URL format: <img src="data:image/jpeg;base64,{base64_data}" alt="description">
-   - Each image should have appropriate alt text describing what it shows
+   - Description should be a brief alt text for the image
+   - Example: <!-- IMAGE_PLACEHOLDER:A beautiful sunset over mountains with digital art style:Sunset over mountains digital art-->
+   - DO NOT include actual base64 image data in the HTML
+   - DO NOT try to generate images yourself
+   - Just insert the placeholder comments where images should go
 
 Generate ONLY the HTML/CSS code. Do not include any explanations, markdown formatting, or additional text outside of the HTML document.`,
     ru: `Вы эксперт по веб-разработке, специализирующийся на создании профессиональных HTML/CSS слайдов для презентаций с AI-генерацией изображений.
@@ -174,7 +177,6 @@ Generate ONLY the HTML/CSS code. Do not include any explanations, markdown forma
 5. Требования к изображениям:
    - ПЕРВЫЙ СЛАЙД ОБЯЗАТЕЛЬНО должен включать AI-сгенерированное изображение, визуально представляющее основную тему презентации
    - Другие слайды должны включать изображения там, где они помогают объяснить концепции или делают слайд более привлекательным
-   - Используйте инструмент generate_image для создания изображений, когда это необходимо
    - Изображения должны быть релевантны содержанию слайда
    - Включите описательный alt текст для доступности
 
@@ -194,13 +196,17 @@ Generate ONLY the HTML/CSS code. Do not include any explanations, markdown forma
    - НЕ обрезайте и НЕ оставляйте HTML неполным
    - Убедитесь, что все теги правильно закрыты
 
-8. ИНСТРУКЦИИ ПО ГЕНЕРАЦИИ ИЗОБРАЖЕНИЙ:
-   - Когда вам нужно изображение, используйте инструмент generate_image с подробным промптом
-   - Для первого слайда: создайте изображение, которое визуально представляет основную тему презентации
-   - Для других слайдов: создайте изображения, которые иллюстрируют ключевые концепции или улучшают понимание
+8. ИНСТРУКЦИИ ПО ЗАГЛУШКАМ ДЛЯ ИЗОБРАЖЕНИЙ:
+   - Когда вам нужно изображение, вставьте специальный комментарий-заглушку в HTML
+   - Формат заглушки: <!-- IMAGE_PLACEHOLDER:текст_промпта:описание -->
+   - Для первого слайда: включите заглушку для изображения, которое визуально представляет основную тему презентации
+   - Для других слайдов: включите заглушки для изображений, которые иллюстрируют ключевые концепции или улучшают понимание
    - Промпты для изображений должны быть описательными и конкретными
-   - После генерации изображения включите его в HTML в формате base64 data URL: <img src="data:image/jpeg;base64,{base64_data}" alt="описание">
-   - Каждое изображение должно иметь соответствующий alt текст, описывающий, что оно показывает
+   - Описание должно быть кратким alt текстом для изображения
+   - Пример: <!-- IMAGE_PLACEHOLDER:Красивый закат над горами в стиле цифрового искусства:Закат над горами цифровое искусство-->
+   - НЕ включайте фактические данные base64 изображения в HTML
+   - НЕ пытайтесь генерировать изображения самостоятельно
+   - Просто вставляйте комментарии-заглушки там, где должны быть изображения
 
 Генерируйте ТОЛЬКО HTML/CSS код. Не включайте никаких объяснений, форматирования markdown или дополнительного текста вне HTML документа.`,
   },

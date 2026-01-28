@@ -7,12 +7,19 @@ interface StreamingDisplayProps {
   isGenerating: boolean;
   streamingContent: string;
   onCancel?: () => void;
+  imageGenerationProgress?: {
+    isGenerating: boolean;
+    current: number;
+    total: number;
+    currentPrompt: string;
+  };
 }
 
 export default function StreamingDisplay({
   isGenerating,
   streamingContent,
   onCancel,
+  imageGenerationProgress,
 }: StreamingDisplayProps) {
   const { t } = useTranslation();
   const contentRef = useRef<HTMLDivElement>(null);
@@ -57,14 +64,53 @@ export default function StreamingDisplay({
     };
   }, [streamingContent]);
 
-  if (!isGenerating) return null;
+  if (!isGenerating && !imageGenerationProgress?.isGenerating) return null;
 
   return (
     <div className="mb-6 bg-white rounded-2xl shadow-lg p-6">
       <div className="flex items-center gap-3 mb-4">
         <div className="h-3 w-3 bg-blue-600 rounded-full animate-pulse"></div>
-        <h3 className="text-lg font-semibold text-gray-900">{t("streamingDisplay.title")}</h3>
+        <h3 className="text-lg font-semibold text-gray-900">
+          {imageGenerationProgress?.isGenerating 
+            ? t("streamingDisplay.imageGenerationTitle") || "Generating Images"
+            : t("streamingDisplay.title")}
+        </h3>
       </div>
+      
+      {/* Image Generation Progress */}
+      {imageGenerationProgress?.isGenerating && (
+        <div className="mb-4 bg-gradient-to-r from-purple-50 to-blue-50 rounded-xl p-4">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <svg className="animate-spin h-5 w-5 text-purple-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              <span className="text-sm font-medium text-gray-900">
+                {t("streamingDisplay.generatingImage") || "Generating image"} {imageGenerationProgress.current} {t("streamingDisplay.of") || "of"} {imageGenerationProgress.total}
+              </span>
+            </div>
+            <span className="text-sm font-semibold text-purple-600">
+              {Math.round((imageGenerationProgress.current / imageGenerationProgress.total) * 100)}%
+            </span>
+          </div>
+          
+          {/* Progress Bar */}
+          <div className="w-full bg-gray-200 rounded-full h-2.5 mb-3">
+            <div 
+              className="bg-gradient-to-r from-purple-600 to-blue-600 h-2.5 rounded-full transition-all duration-500 ease-out"
+              style={{ width: `${(imageGenerationProgress.current / imageGenerationProgress.total) * 100}%` }}
+            ></div>
+          </div>
+          
+          {/* Current Prompt */}
+          {imageGenerationProgress.currentPrompt && (
+            <div className="text-xs text-gray-600 italic truncate">
+              {t("streamingDisplay.currentPrompt") || "Prompt"}: {imageGenerationProgress.currentPrompt}
+            </div>
+          )}
+        </div>
+      )}
       <div 
         ref={contentRef}
         className="bg-gray-50 rounded-xl p-4 min-h-[200px] max-h-[400px] overflow-y-auto"

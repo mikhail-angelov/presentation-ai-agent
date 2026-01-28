@@ -51,6 +51,19 @@ export default function Home() {
   // Modal state for slides preview
   const [showSlidesModal, setShowSlidesModal] = useState(false);
   const [generatedSlidesHTML, setGeneratedSlidesHTML] = useState<string>("");
+  
+  // Image generation progress state
+  const [imageGenerationProgress, setImageGenerationProgress] = useState<{
+    isGenerating: boolean;
+    current: number;
+    total: number;
+    currentPrompt: string;
+  }>({
+    isGenerating: false,
+    current: 0,
+    total: 0,
+    currentPrompt: "",
+  });
 
   // Helper functions
   const addLLMRequest = (request: LLMRequest) => {
@@ -679,8 +692,8 @@ export default function Home() {
       const exampleResponse = await fetch("/example-slides.html");
       const exampleHtml = await exampleResponse.text();
 
-      // Generate HTML slides using LLM with streaming
-      const response = await fetch("/api/generate-slides-stream", {
+      // Step 1: Generate HTML slides with placeholders
+      const response = await fetch("/api/generate-slides", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -708,6 +721,7 @@ export default function Home() {
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let fullContent = "";
+      let imagePlaceholders: Array<{prompt: string, description: string, type: string}> = [];
 
       while (true) {
         const { done, value } = await reader.read();
@@ -721,24 +735,38 @@ export default function Home() {
             try {
               const data = JSON.parse(line.slice(6));
 
+              // Handle different event types
               if (data.chunk) {
                 // Stream chunk directly from LLM
                 fullContent += data.chunk;
                 setStreamingContent(fullContent);
-              }
-
-              if (data.done) {
+              } else if (data.type === "slides_generation_completed") {
+                // Slides HTML generation completed
+                imagePlaceholders = data.placeholders || [];
+                addToast(t("toasts.slidesGenerationCompleted") || "Slides generated, ready to generate images...", "info");
+                
+                // Store the HTML with placeholders
+                updateStepContent("htmlSlides", fullContent);
+                setGeneratedSlidesHTML(fullContent);
+                
+                // Navigate to htmlSlides step
+                navigateToStep("htmlSlides");
+                
+                // Start image generation if there are placeholders
+                if (imagePlaceholders.length > 0) {
+                  setTimeout(() => {
+                    handleGenerateImages(fullContent, imagePlaceholders);
+                  }, 1000);
+                } else {
+                  addToast(t("toasts.htmlSlidesGenerated"), "success");
+                }
+              } else if (data.type === "final_completion" && data.done) {
                 // Streaming completed
-                const htmlContent = data.content || fullContent;
+                const htmlContent = fullContent;
 
                 // Store HTML in stepContents
                 updateStepContent("htmlSlides", htmlContent);
-
-                // Store HTML for modal
                 setGeneratedSlidesHTML(htmlContent);
-
-                // Navigate to htmlSlides step
-                navigateToStep("htmlSlides");
 
                 // Track successful generation
                 trackAction("generate_slides_html_stream_success", {
@@ -748,7 +776,9 @@ export default function Home() {
                   duration: data.duration,
                 });
 
-                addToast(t("toasts.htmlSlidesGenerated"), "success");
+                if (imagePlaceholders.length === 0) {
+                  addToast(t("toasts.htmlSlidesGenerated"), "success");
+                }
               }
 
               if (data.error) {
@@ -776,6 +806,72 @@ export default function Home() {
       });
     } finally {
       setIsGenerating(false);
+    }
+  };
+
+  // Step 2: Generate images for placeholders
+  const handleGenerateImages = async (htmlContent: string, placeholders: Array<{prompt: string, description: string, type: string}>) => {
+    try {
+      setImageGenerationProgress({
+        isGenerating: true,
+        current: 0,
+        total: placeholders.length,
+        currentPrompt: "",
+      });
+      
+      addToast(t("toasts.imageGenerationStarted") || `Generating ${placeholders.length} images...`, "info");
+
+      // Call the new image generation API to process all placeholders at once
+      const response = await fetch("/api/generate-images", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          htmlContent: htmlContent,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      
+      if (result.success && result.htmlContent) {
+        // Update progress to show completion
+        setImageGenerationProgress({
+          isGenerating: false,
+          current: result.imagesGenerated || 0,
+          total: result.totalPlaceholders || placeholders.length,
+          currentPrompt: "",
+        });
+        
+        // Update the displayed HTML with all images
+        updateStepContent("htmlSlides", result.htmlContent);
+        setGeneratedSlidesHTML(result.htmlContent);
+        setStreamingContent(result.htmlContent);
+        
+        addToast(t("toasts.imageGenerationCompleted") || `Generated ${result.imagesGenerated || 0} of ${result.totalPlaceholders || placeholders.length} images`, "success");
+      } else {
+        throw new Error(result.error || "Failed to generate images");
+      }
+
+    } catch (error) {
+      console.error("Error in image generation:", error);
+      addToast(
+        t("toasts.imageGenerationFailed", {
+          error: error instanceof Error ? error.message : "Unknown error",
+        }),
+        "error",
+      );
+      
+      setImageGenerationProgress({
+        isGenerating: false,
+        current: 0,
+        total: 0,
+        currentPrompt: "",
+      });
     }
   };
 
@@ -912,6 +1008,7 @@ export default function Home() {
                 isGenerating={isGenerating}
                 streamingContent={streamingContent}
                 onCancel={handleCancelGeneration}
+                imageGenerationProgress={imageGenerationProgress}
               />
               {renderStepContent()}
             </div>
