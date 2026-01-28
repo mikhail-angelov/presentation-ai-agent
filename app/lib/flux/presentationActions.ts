@@ -463,7 +463,7 @@ export const presentationActions = {
   },
 
   // Complete Presentation - Generate HTML Slides
-  async completePresentation(
+  async generateHtmlSlides(
     setup: StepContent['setup'],
     slidesContent: string,
     options: PresentationServiceOptions

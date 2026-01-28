@@ -175,28 +175,15 @@ export default function Home() {
     }
   };
 
-  const handleCompletePresentation = async () => {
+  const handleGenerateHtmlSlides = async () => {
     try {
-      await presentationActions.completePresentation(
+      await presentationActions.generateHtmlSlides(
         stepContents.setup,
         stepContents.slides,
         presentationOptions
       );
     } catch (error) {
       console.error("Error completing presentation:", error);
-    }
-  };
-
-  // Step 2: Generate images for placeholders
-  const handleGenerateImages = async (htmlContent: string, placeholders: any[]) => {
-    try {
-      await presentationActions.generateImages(
-        htmlContent,
-        placeholders,
-        presentationOptions
-      );
-    } catch (error) {
-      console.error("Error generating images:", error);
     }
   };
 
@@ -272,7 +259,7 @@ export default function Home() {
             slides={stepContents.slides}
             setup={stepContents.setup}
             onBack={() => navigateToStep("speech")}
-            onCompletePresentation={handleCompletePresentation}
+            onGenerateHtmlSlides={handleGenerateHtmlSlides}
             onRegenerateSlides={handleGenerateSlides}
             onUpdateSlides={(content) => updateStepContent("slides", content)}
             onCopyContent={handleCopyContent}

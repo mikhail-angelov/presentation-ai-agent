@@ -12,7 +12,7 @@ interface SlidesStepProps {
     keyPoints: string[];
   };
   onBack: () => void;
-  onCompletePresentation: () => void;
+  onGenerateHtmlSlides: () => void;
   onRegenerateSlides: () => void;
   onUpdateSlides: (content: string) => void;
   onCopyContent: (content: string) => void;
@@ -23,7 +23,7 @@ export default function SlidesStep({
   slides,
   setup,
   onBack,
-  onCompletePresentation,
+  onGenerateHtmlSlides,
   onRegenerateSlides,
   onUpdateSlides,
   onCopyContent,
@@ -51,7 +51,7 @@ export default function SlidesStep({
             {t("slidesStep.backButton")}
           </button>
           <button
-            onClick={onCompletePresentation}
+            onClick={onGenerateHtmlSlides}
             className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium flex items-center gap-2"
           >
             {t("slidesStep.generateHtmlSlidesButton")}
