@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import Header from "./components/shared/Header";
 import PresentationSetup from "./components/presentation/PresentationSetup";
 import OutlineStep from "./components/presentation/OutlineStep";
@@ -10,105 +10,46 @@ import HtmlSlidesStep from "./components/presentation/HtmlSlidesStep";
 import StreamingDisplay from "./components/presentation/StreamingDisplay";
 import PreparationSteps from "./components/presentation/PreparationSteps";
 import Footer from "./components/shared/Footer";
-import { LLMRequest, RateLimit } from "./types";
 import { useSession } from "./hooks/useSession";
 import { useTranslation } from "./hooks/useTranslation";
-import { StepContent, StepType } from "./types/steps";
+import { StepType } from "./types/steps";
 import { useToast } from "./contexts/ToastContext";
 import SlidesPreviewModal from "./components/shared/SlidesPreviewModal";
+import { useStore } from "./lib/flux/store";
+import { dispatcher, dispatcherHelpers } from "./lib/flux/dispatcher";
 
 export default function Home() {
   const { session, trackAction } = useSession();
-  const { currentLanguage, isLoading, t } = useTranslation();
+  const { isLoading, t } = useTranslation();
   const { addToast } = useToast();
 
-  // Step management
-  const [activeStep, setActiveStep] = useState<StepType>("setup");
-  const [stepHistory, setStepHistory] = useState<StepType[]>(["setup"]);
-  const [stepContents, setStepContents] = useState<StepContent>({
-    setup: {
-      topic: "",
-      audience: "",
-      duration: "10",
-      keyPoints: [""],
-    },
-    outline: "",
-    speech: "",
-    slides: "",
-    htmlSlides: "",
-  });
-
-  // UI states
-  const [llmRequests, setLlmRequests] = useState<LLMRequest[]>([]);
-  const [rateLimit, setRateLimit] = useState<RateLimit>({
-    used: 0,
-    limit: 10,
-  });
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [streamingContent, setStreamingContent] = useState("");
-  const [abortController, setAbortController] =
-    useState<AbortController | null>(null);
-  // Modal state for slides preview
-  const [showSlidesModal, setShowSlidesModal] = useState(false);
-  const [generatedSlidesHTML, setGeneratedSlidesHTML] = useState<string>("");
-  
-  // Image generation progress state
-  const [imageGenerationProgress, setImageGenerationProgress] = useState<{
-    isGenerating: boolean;
-    current: number;
-    total: number;
-    currentPrompt: string;
-  }>({
-    isGenerating: false,
-    current: 0,
-    total: 0,
-    currentPrompt: "",
-  });
+  // Get state from Flux store
+  const {
+    activeStep,
+    stepHistory,
+    stepContents,
+    rateLimit,
+    isGenerating,
+    streamingContent,
+    showSlidesModal,
+    generatedSlidesHTML,
+    imageGenerationProgress,
+    presentationActions,
+    presentationOptions,
+  } = useStore();
 
   // Helper functions
-  const addLLMRequest = (request: LLMRequest) => {
-    setLlmRequests((prev) => [request, ...prev.slice(0, 9)]);
-    // Update used count based on session actions if available, otherwise increment
-    if (session) {
-      setRateLimit((prev) => ({
-        ...prev,
-        used: Math.min(session.actions.length, prev.limit),
-      }));
-    } else {
-      setRateLimit((prev) => ({
-        ...prev,
-        used: Math.min(prev.used + 1, prev.limit),
-      }));
-    }
-  };
-
   const navigateToStep = (step: StepType) => {
-    setActiveStep(step);
-    if (!stepHistory.includes(step)) {
-      setStepHistory([...stepHistory, step]);
-    }
+    dispatcherHelpers.navigateToStep(step);
   };
 
   const updateStepContent = (step: StepType, content: any) => {
-    setStepContents((prev) => ({
-      ...prev,
-      [step]: content,
-    }));
-
-    // Also update generatedSlidesHTML if htmlSlides is being updated
-    if (step === "htmlSlides" && typeof content === "string") {
-      setGeneratedSlidesHTML(content);
-    }
+    dispatcherHelpers.updateStepContentWithHtmlSync(step, content);
   };
 
   // Cancel generation function
   const handleCancelGeneration = () => {
-    if (abortController) {
-      abortController.abort();
-      setAbortController(null);
-    }
-    setIsGenerating(false);
-    setStreamingContent("");
+    dispatcherHelpers.cancelGeneration();
     addToast(t("toasts.generationCancelled"), "info");
     trackAction("cancel_generation", {
       step: activeStep,
@@ -172,51 +113,11 @@ export default function Home() {
         throw new Error("Invalid save file: missing stepContents");
       }
 
-      // Update step contents
-      setStepContents(data.stepContents);
-
-      // Update generatedSlidesHTML if htmlSlides exists in loaded data
-      if (
-        data.stepContents.htmlSlides &&
-        typeof data.stepContents.htmlSlides === "string"
-      ) {
-        setGeneratedSlidesHTML(data.stepContents.htmlSlides);
-      }
-
-      // Recompose stepHistory based on stepContents
-      const newStepHistory: StepType[] = ["setup"]; // Always start with setup
-
-      // Check which steps have content and add them to history in order
-      const steps: StepType[] = [
-        "setup",
-        "outline",
-        "speech",
-        "slides",
-        "htmlSlides",
-      ];
-
-      for (const step of steps) {
-        if (step === "setup") continue; // Already added
-        const content = data.stepContents[step];
-        // Check if content exists and is not empty
-        if (
-          content &&
-          (typeof content === "string"
-            ? content.trim() !== ""
-            : Array.isArray(content)
-              ? content.length > 0
-              : Object.keys(content).length > 0)
-        ) {
-          if (!newStepHistory.includes(step)) {
-            newStepHistory.push(step);
-          }
-        }
-      }
-
-      setStepHistory(newStepHistory);
-
-      // Always set activeStep as "setup" after loading
-      setActiveStep("setup");
+      // Load presentation using dispatcher
+      dispatcher.loadPresentation(
+        data.stepContents,
+        data.stepContents.htmlSlides
+      );
 
       // Track load action
       trackAction("load_presentation", {
@@ -238,640 +139,64 @@ export default function Home() {
 
   // Step 1: Generate Outline
   const handleGenerateOutline = async () => {
-    const { topic, audience, duration, keyPoints } = stepContents.setup;
-    if (!topic.trim()) {
-      addToast(t("toasts.enterTopicFirst"), "warning");
-      return;
-    }
-    setIsGenerating(true);
-    setStreamingContent("");
-
-    // Create abort controller for cancellation
-    const controller = new AbortController();
-    setAbortController(controller);
-
-    trackAction("start_presentation", {
-      topic,
-      audience,
-      duration,
-      keyPoints: keyPoints.filter((kp) => kp.trim() !== ""),
-    });
-    const startTime = Date.now();
-    const requestId = Math.random().toString(36).substr(2, 9);
     try {
-      const response = await fetch("/api/generate-content", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
-        signal: controller.signal,
-        body: JSON.stringify({
-          topic,
-          audience,
-          duration,
-          keyPoints: keyPoints.filter((kp) => kp.trim() !== ""),
-          stepType: "outline",
-          language: currentLanguage,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      if (!response.body) {
-        throw new Error("No response body");
-      }
-
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let fullContent = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        const chunk = decoder.decode(value);
-        const lines = chunk.split("\n");
-
-        for (const line of lines) {
-          if (line.startsWith("data: ")) {
-            try {
-              const data = JSON.parse(line.slice(6));
-
-              if (data.chunk) {
-                // Stream chunk directly from LLM
-                fullContent += data.chunk;
-                setStreamingContent(fullContent);
-              }
-
-              if (data.done) {
-                // Streaming completed
-                const durationMs = Date.now() - startTime;
-                // Update outline content
-                updateStepContent("outline", data.content || fullContent);
-                // Add to LLM requests
-                const newRequest: LLMRequest = {
-                  id: requestId,
-                  timestamp: new Date(),
-                  endpoint: "/api/generate-content",
-                  status: "success",
-                  tokensUsed:
-                    data.tokensUsed || Math.floor(fullContent.length / 4),
-                  duration: data.duration || durationMs,
-                };
-                addLLMRequest(newRequest);
-                // Track successful generation in session
-                trackAction(
-                  "generate_presentation_success",
-                  {
-                    topic,
-                    audience,
-                    duration,
-                  },
-                  {
-                    contentLength: fullContent.length,
-                    tokensUsed:
-                      data.tokensUsed || Math.floor(fullContent.length / 4),
-                    sessionId: data.sessionId,
-                    newSessionCreated: data.newSessionCreated,
-                  },
-                  data.tokensUsed || Math.floor(fullContent.length / 4),
-                  data.duration || durationMs,
-                );
-                // Navigate to outline step after streaming completes
-                setTimeout(() => {
-                  navigateToStep("outline");
-                }, 500);
-              }
-
-              if (data.error) {
-                throw new Error(data.error);
-              }
-            } catch (e) {
-              console.error("Error parsing SSE data:", e);
-            }
-          }
-        }
-      }
-    } catch (error) {
-      const durationMs = Date.now() - startTime;
-      console.error("Error generating content:", error);
-      // Track network error in session
-      trackAction(
-        "generate_presentation_network_error",
-        {
-          topic,
-        },
-        {
-          error: error instanceof Error ? error.message : "Unknown error",
-        },
-        undefined,
-        durationMs,
+      await presentationActions.generateOutline(
+        stepContents.setup,
+        presentationOptions
       );
-      const errorRequest: LLMRequest = {
-        id: requestId,
-        timestamp: new Date(),
-        endpoint: "/api/generate-content",
-        status: "error",
-        tokensUsed: 0,
-        duration: durationMs,
-      };
-      addLLMRequest(errorRequest);
-      addToast(t("toasts.aiServiceFailed"), "error");
-    } finally {
-      setIsGenerating(false);
+    } catch (error) {
+      console.error("Error generating outline:", error);
     }
   };
 
   // Step 2: Generate Speech from Outline
   const handleGenerateSpeech = async () => {
-    const { topic, audience, duration } = stepContents.setup;
-    const outline = stepContents.outline;
-
-    setIsGenerating(true);
-    setStreamingContent("");
-
-    // Create abort controller for cancellation
-    const controller = new AbortController();
-    setAbortController(controller);
-
-    const startTime = Date.now();
-    const requestId = Math.random().toString(36).substr(2, 9);
-
     try {
-      const response = await fetch("/api/generate-content", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
-        signal: controller.signal,
-        body: JSON.stringify({
-          topic,
-          audience,
-          duration,
-          keyPoints: [
-            "Convert outline to spoken speech",
-            "Natural speaking style",
-            "Engaging delivery",
-          ],
-          stepType: "speech",
-          previousContent: outline,
-          language: currentLanguage,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      if (!response.body) {
-        throw new Error("No response body");
-      }
-
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let fullContent = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        const chunk = decoder.decode(value);
-        const lines = chunk.split("\n");
-
-        for (const line of lines) {
-          if (line.startsWith("data: ")) {
-            try {
-              const data = JSON.parse(line.slice(6));
-
-              if (data.chunk) {
-                // Stream chunk directly from LLM
-                fullContent += data.chunk;
-                setStreamingContent(fullContent);
-              }
-
-              if (data.done) {
-                // Streaming completed
-                const durationMs = Date.now() - startTime;
-                // Update speech content
-                updateStepContent("speech", data.content || fullContent);
-                // Add to LLM requests
-                const newRequest: LLMRequest = {
-                  id: requestId,
-                  timestamp: new Date(),
-                  endpoint: "/api/generate-content",
-                  status: "success",
-                  tokensUsed:
-                    data.tokensUsed || Math.floor(fullContent.length / 4),
-                  duration: data.duration || durationMs,
-                };
-                addLLMRequest(newRequest);
-                // Track successful generation in session
-                trackAction(
-                  "generate_speech_success",
-                  {
-                    topic,
-                    outlineLength: outline.length,
-                  },
-                  {
-                    contentLength: fullContent.length,
-                    tokensUsed:
-                      data.tokensUsed || Math.floor(fullContent.length / 4),
-                  },
-                  data.tokensUsed || Math.floor(fullContent.length / 4),
-                  data.duration || durationMs,
-                );
-                // Navigate to speech step after streaming completes
-                setTimeout(() => {
-                  navigateToStep("speech");
-                }, 500);
-              }
-
-              if (data.error) {
-                throw new Error(data.error);
-              }
-            } catch (e) {
-              console.error("Error parsing SSE data:", e);
-            }
-          }
-        }
-      }
-    } catch (error) {
-      const durationMs = Date.now() - startTime;
-      console.error("Error generating speech:", error);
-      // Track network error in session
-      trackAction(
-        "generate_speech_network_error",
-        {
-          topic,
-        },
-        {
-          error: error instanceof Error ? error.message : "Unknown error",
-        },
-        undefined,
-        durationMs,
+      await presentationActions.generateSpeech(
+        stepContents.setup,
+        stepContents.outline,
+        presentationOptions
       );
-      const errorRequest: LLMRequest = {
-        id: requestId,
-        timestamp: new Date(),
-        endpoint: "/api/generate-content",
-        status: "error",
-        tokensUsed: 0,
-        duration: durationMs,
-      };
-      addLLMRequest(errorRequest);
-      addToast(t("toasts.aiServiceFailed"), "error");
-    } finally {
-      setIsGenerating(false);
+    } catch (error) {
+      console.error("Error generating speech:", error);
     }
   };
 
   // Step 3: Generate Slides from Speech
   const handleGenerateSlides = async () => {
-    const { topic, audience, duration } = stepContents.setup;
-    const speech = stepContents.speech;
-
-    setIsGenerating(true);
-    setStreamingContent("");
-
-    // Create abort controller for cancellation
-    const controller = new AbortController();
-    setAbortController(controller);
-
-    const startTime = Date.now();
-    const requestId = Math.random().toString(36).substr(2, 9);
-
     try {
-      const response = await fetch("/api/generate-content", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
-        signal: controller.signal,
-        body: JSON.stringify({
-          topic,
-          audience,
-          duration,
-          keyPoints: [
-            "Create slide content",
-            "Visual suggestions",
-            "Slide structure",
-          ],
-          stepType: "slides",
-          previousContent: speech,
-          language: currentLanguage,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      if (!response.body) {
-        throw new Error("No response body");
-      }
-
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let fullContent = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        const chunk = decoder.decode(value);
-        const lines = chunk.split("\n");
-
-        for (const line of lines) {
-          if (line.startsWith("data: ")) {
-            try {
-              const data = JSON.parse(line.slice(6));
-
-              if (data.chunk) {
-                // Stream chunk directly from LLM
-                fullContent += data.chunk;
-                setStreamingContent(fullContent);
-              }
-
-              if (data.done) {
-                // Streaming completed
-                const durationMs = Date.now() - startTime;
-                // Update slides content
-                updateStepContent("slides", data.content || fullContent);
-                // Add to LLM requests
-                const newRequest: LLMRequest = {
-                  id: requestId,
-                  timestamp: new Date(),
-                  endpoint: "/api/generate-content",
-                  status: "success",
-                  tokensUsed:
-                    data.tokensUsed || Math.floor(fullContent.length / 4),
-                  duration: data.duration || durationMs,
-                };
-                addLLMRequest(newRequest);
-                // Track successful generation in session
-                trackAction(
-                  "generate_slides_success",
-                  {
-                    topic,
-                    speechLength: speech.length,
-                  },
-                  {
-                    contentLength: fullContent.length,
-                    tokensUsed:
-                      data.tokensUsed || Math.floor(fullContent.length / 4),
-                  },
-                  data.tokensUsed || Math.floor(fullContent.length / 4),
-                  data.duration || durationMs,
-                );
-                // Navigate to slides step after streaming completes
-                setTimeout(() => {
-                  navigateToStep("slides");
-                }, 500);
-              }
-
-              if (data.error) {
-                throw new Error(data.error);
-              }
-            } catch (e) {
-              console.error("Error parsing SSE data:", e);
-            }
-          }
-        }
-      }
-    } catch (error) {
-      const durationMs = Date.now() - startTime;
-      console.error("Error generating slides:", error);
-      // Track network error in session
-      trackAction(
-        "generate_slides_network_error",
-        {
-          topic,
-        },
-        {
-          error: error instanceof Error ? error.message : "Unknown error",
-        },
-        undefined,
-        durationMs,
+      await presentationActions.generateSlides(
+        stepContents.setup,
+        stepContents.speech,
+        presentationOptions
       );
-      const errorRequest: LLMRequest = {
-        id: requestId,
-        timestamp: new Date(),
-        endpoint: "/api/generate-content",
-        status: "error",
-        tokensUsed: 0,
-        duration: durationMs,
-      };
-      addLLMRequest(errorRequest);
-      addToast(t("toasts.aiServiceFailed"), "error");
-    } finally {
-      setIsGenerating(false);
+    } catch (error) {
+      console.error("Error generating slides:", error);
     }
   };
 
   const handleCompletePresentation = async () => {
     try {
-      setIsGenerating(true);
-      setStreamingContent("");
-      addToast(t("toasts.generatingHtmlSlides"), "info");
-
-      const { topic, audience, duration } = stepContents.setup;
-      const slidesContent = stepContents.slides;
-
-      // Create abort controller for cancellation
-      const controller = new AbortController();
-      setAbortController(controller);
-
-      // Read example presentation HTML
-      const templateResponse = await fetch("/presentation.html");
-      const templateHtml = await templateResponse.text();
-      const exampleResponse = await fetch("/example-slides.html");
-      const exampleHtml = await exampleResponse.text();
-
-      // Step 1: Generate HTML slides with placeholders
-      const response = await fetch("/api/generate-slides", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        signal: controller.signal,
-        body: JSON.stringify({
-          topic,
-          audience,
-          duration,
-          slidesContent,
-          exampleHtml,
-          templateHtml,
-          language: currentLanguage,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      if (!response.body) {
-        throw new Error("No response body");
-      }
-
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let fullContent = "";
-      let imagePlaceholders: Array<{prompt: string, description: string, type: string}> = [];
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        const chunk = decoder.decode(value);
-        const lines = chunk.split("\n");
-
-        for (const line of lines) {
-          if (line.startsWith("data: ")) {
-            try {
-              const data = JSON.parse(line.slice(6));
-
-              // Handle different event types
-              if (data.chunk) {
-                // Stream chunk directly from LLM
-                fullContent += data.chunk;
-                setStreamingContent(fullContent);
-              } else if (data.type === "slides_generation_completed") {
-                // Slides HTML generation completed
-                imagePlaceholders = data.placeholders || [];
-                addToast(t("toasts.slidesGenerationCompleted") || "Slides generated, ready to generate images...", "info");
-                
-                // Store the HTML with placeholders
-                updateStepContent("htmlSlides", fullContent);
-                setGeneratedSlidesHTML(fullContent);
-                
-                // Navigate to htmlSlides step
-                navigateToStep("htmlSlides");
-                
-                // Start image generation if there are placeholders
-                if (imagePlaceholders.length > 0) {
-                  setTimeout(() => {
-                    handleGenerateImages(fullContent, imagePlaceholders);
-                  }, 1000);
-                } else {
-                  addToast(t("toasts.htmlSlidesGenerated"), "success");
-                }
-              } else if (data.type === "final_completion" && data.done) {
-                // Streaming completed
-                const htmlContent = fullContent;
-
-                // Store HTML in stepContents
-                updateStepContent("htmlSlides", htmlContent);
-                setGeneratedSlidesHTML(htmlContent);
-
-                // Track successful generation
-                trackAction("generate_slides_html_stream_success", {
-                  topic,
-                  htmlLength: htmlContent.length,
-                  tokensUsed: data.tokensUsed,
-                  duration: data.duration,
-                });
-
-                if (imagePlaceholders.length === 0) {
-                  addToast(t("toasts.htmlSlidesGenerated"), "success");
-                }
-              }
-
-              if (data.error) {
-                throw new Error(data.error);
-              }
-            } catch (e) {
-              console.error("Error parsing SSE data:", e);
-            }
-          }
-        }
-      }
-    } catch (error) {
-      console.error("Error generating slides:", error);
-      addToast(
-        t("toasts.generateSlidesFailed", {
-          error: error instanceof Error ? error.message : "Unknown error",
-        }),
-        "error",
+      await presentationActions.completePresentation(
+        stepContents.setup,
+        stepContents.slides,
+        presentationOptions
       );
-
-      // Track error
-      trackAction("generate_slides_html_stream_error", {
-        topic: stepContents.setup.topic,
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-    } finally {
-      setIsGenerating(false);
+    } catch (error) {
+      console.error("Error completing presentation:", error);
     }
   };
 
   // Step 2: Generate images for placeholders
-  const handleGenerateImages = async (htmlContent: string, placeholders: Array<{prompt: string, description: string, type: string}>) => {
+  const handleGenerateImages = async (htmlContent: string, placeholders: any[]) => {
     try {
-      setImageGenerationProgress({
-        isGenerating: true,
-        current: 0,
-        total: placeholders.length,
-        currentPrompt: "",
-      });
-      
-      addToast(t("toasts.imageGenerationStarted") || `Generating ${placeholders.length} images...`, "info");
-
-      // Call the new image generation API to process all placeholders at once
-      const response = await fetch("/api/generate-images", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          htmlContent: htmlContent,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const result = await response.json();
-      
-      if (result.success && result.htmlContent) {
-        // Update progress to show completion
-        setImageGenerationProgress({
-          isGenerating: false,
-          current: result.imagesGenerated || 0,
-          total: result.totalPlaceholders || placeholders.length,
-          currentPrompt: "",
-        });
-        
-        // Update the displayed HTML with all images
-        updateStepContent("htmlSlides", result.htmlContent);
-        setGeneratedSlidesHTML(result.htmlContent);
-        setStreamingContent(result.htmlContent);
-        
-        addToast(t("toasts.imageGenerationCompleted") || `Generated ${result.imagesGenerated || 0} of ${result.totalPlaceholders || placeholders.length} images`, "success");
-      } else {
-        throw new Error(result.error || "Failed to generate images");
-      }
-
-    } catch (error) {
-      console.error("Error in image generation:", error);
-      addToast(
-        t("toasts.imageGenerationFailed", {
-          error: error instanceof Error ? error.message : "Unknown error",
-        }),
-        "error",
+      await presentationActions.generateImages(
+        htmlContent,
+        placeholders,
+        presentationOptions
       );
-      
-      setImageGenerationProgress({
-        isGenerating: false,
-        current: 0,
-        total: 0,
-        currentPrompt: "",
-      });
+    } catch (error) {
+      console.error("Error generating images:", error);
     }
   };
 
@@ -886,15 +211,6 @@ export default function Home() {
     }
   }, []);
 
-  // Update rate limit used count when session actions change
-  useEffect(() => {
-    if (session) {
-      setRateLimit((prev) => ({
-        ...prev,
-        used: Math.min(session.actions.length, prev.limit),
-      }));
-    }
-  }, [session?.actions?.length]);
 
   // Render step content based on active step
   const renderStepContent = () => {
@@ -970,7 +286,7 @@ export default function Home() {
             htmlSlides={stepContents.htmlSlides}
             setup={stepContents.setup}
             onBack={() => navigateToStep("slides")}
-            onShowPreview={() => setShowSlidesModal(true)}
+            onShowPreview={() => dispatcher.setShowSlidesModal(true)}
             onCopyContent={handleCopyContent}
             onDownloadContent={handleDownloadContent}
             onUpdateHtmlSlides={(content) =>
@@ -1038,7 +354,7 @@ export default function Home() {
 
       {showSlidesModal && (
         <SlidesPreviewModal
-          onClose={() => setShowSlidesModal(false)}
+          onClose={() => dispatcher.setShowSlidesModal(false)}
           htmlContent={generatedSlidesHTML}
           topic={stepContents.setup.topic}
         />
