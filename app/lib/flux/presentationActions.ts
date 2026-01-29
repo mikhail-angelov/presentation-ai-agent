@@ -534,20 +534,6 @@ export const presentationActions = {
               if (data.chunk) {
                 fullContent += data.chunk;
                 dispatcher.setStreamingContent(fullContent);
-              } else if (data.type === "slides_generation_completed") {
-                imagePlaceholders = data.placeholders || [];
-                addToast(t("toasts.slidesGenerationCompleted") || "Slides generated, ready to generate images...", "info");
-                
-                dispatcherHelpers.updateStepContentWithHtmlSync("htmlSlides", fullContent);
-                dispatcherHelpers.navigateToStep("htmlSlides");
-                
-                if (imagePlaceholders.length > 0) {
-                  setTimeout(() => {
-                    presentationActions.generateImages(fullContent, imagePlaceholders, options);
-                  }, 1000);
-                } else {
-                  addToast(t("toasts.htmlSlidesGenerated"), "success");
-                }
               } else if (data.type === "final_completion" && data.done) {
                 const htmlContent = fullContent;
                 dispatcherHelpers.updateStepContentWithHtmlSync("htmlSlides", htmlContent);
@@ -573,6 +559,21 @@ export const presentationActions = {
           }
         }
       }
+      //update image placeholder - extractImagePlaceholders function was removed
+      // imagePlaceholders = extractImagePlaceholders(fullContent)
+      // addToast(t("toasts.slidesGenerationCompleted") || "Slides generated, ready to generate images...", "info");
+
+      // dispatcherHelpers.updateStepContentWithHtmlSync("htmlSlides", fullContent);
+      // dispatcherHelpers.navigateToStep("htmlSlides");
+
+      // if (imagePlaceholders.length > 0) {
+      //   setTimeout(() => {
+      //     presentationActions.generateImages(fullContent, imagePlaceholders, options);
+      //   }, 1000);
+      // } else {
+      //   addToast(t("toasts.htmlSlidesGenerated"), "success");
+      // }
+
     } catch (error) {
       console.error("Error generating slides:", error);
       addToast(
