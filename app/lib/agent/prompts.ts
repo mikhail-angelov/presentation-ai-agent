@@ -79,136 +79,46 @@ Format as markdown with clear slide separators and visual suggestions. Think ste
   html_slides: {
     en: `You are a web development expert specializing in creating professional HTML/CSS presentation slides with AI-generated images.
 
-Generate COMPLETE, professional HTML/CSS code for presentation slides with the following requirements:
+IMPORTANT INSTRUCTIONS:
+1. Generate ONLY the slide sections (<section> elements) - NOT the full HTML document
+2. Each slide should be a separate <section> element with appropriate classes
+3. Use the CSS classes from the base template when possible (e.g., .slide, .slide-title, .content-block, .points-list, etc.)
+4. You can also use inline styles if needed for specific styling
+5. Each slide should have:
+   - A title (use <h1> or <h2> with appropriate classes)
+   - Content (paragraphs, lists, etc.)
+   - A slide number indicator (use <div class="slide-number">Slide X of Y</div>)
+6. First slide should have class="slide first-slide" and be a title slide - MUST include an AI-generated image that visually represents the main presentation topic
+7. Last slide should have class="slide last-slide" and be a conclusion slide
 
-1. Create 5-7 slides covering:
-   - Title slide with topic, audience, and duration - MUST include an AI-generated image that visually represents the main topic
-   - Agenda/Outline slide
-   - 3-5 main content slides - include images where appropriate to enhance understanding
-   - Conclusion/Thank you slide
+IMAGE REQUIREMENTS:
+- FIRST SLIDE MUST include an image placeholder that visually represents the main presentation topic
+- Other slides should include image placeholders where they help explain concepts or make the slide more engaging
+- Use the following format for image placeholders: <!-- IMAGE_PLACEHOLDER:detailed description for image generation:brief description -->
+- Make prompts detailed and specific for better image generation
+- Example: <!-- IMAGE_PLACEHOLDER:A professional business meeting with diverse team members discussing charts and graphs on a large screen:Team collaboration meeting -->
 
-2. Design requirements:
-   - Professional, clean design
-   - Simple CSS for good layout for html2canvas render
-   - Include visual hierarchy (headings, subheadings, body text)
-   - Use a color scheme that matches a professional presentation
-   - Responsive design that works on different screen sizes
+AVAILABLE CSS CLASSES FROM TEMPLATE:
+- .slide (base slide class)
+- .first-slide (for first/title slide)
+- .last-slide (for last/conclusion slide)
+- .slide-title (for main slide titles)
+- .slide-subtitle (for subtitles)
+- .content-block (for content container)
+- .content-title (for content section titles)
+- .points-list (for unordered lists)
+- .diagram (for diagram containers)
+- .diagram-title (for diagram titles)
+- .diagram-content (for diagram content)
+- .circle, .rectangle, .line (for diagram elements)
+- .image-placeholder (for image placeholders)
+- .slide-number (for slide number indicator)
+- .thank-you (for thank you message)
 
-3. Code requirements:
-   - Single HTML file with embedded CSS
-   - Include slide numbers
-   - Use semantic HTML5 elements
-   - Include proper meta tags in head
-   - Include viewport meta tag for responsiveness
-
-4. Content requirements:
-   - Extract key information from the provided content
-   - Create clear, concise bullet points where appropriate
-   - Use appropriate typography (font sizes, weights)
-   - Include AI-generated images for visual enhancement
-   - Ensure text is readable with good contrast
-
-5. Image requirements:
-   - FIRST SLIDE MUST include an AI-generated image that visually represents the main presentation topic
-   - Other slides should include images where they help explain concepts or make the slide more engaging
-   - Images should be relevant to the slide content
-   - Include descriptive alt text for accessibility
-
-6. Diagram requirements:
-   - Create simple CSS-based diagrams for key concepts
-   - Use CSS shapes (circles, rectangles, lines) to represent relationships
-   - Use color coding for different elements
-   - Include labels for diagram components
-
-7. COMPLETENESS REQUIREMENTS:
-   - Generate the ENTIRE HTML document from start to finish
-   - MUST start with <!DOCTYPE html>
-   - MUST include complete <html>, <head>, and <body> tags
-   - MUST include CSS styles in <style> tag in head
-   - MUST include at least 5 slides with proper structure
-   - MUST end with the closing </html> tag
-   - DO NOT truncate or leave the HTML incomplete
-   - Ensure all tags are properly closed
-
-8. IMAGE PLACEHOLDER INSTRUCTIONS:
-   - When you need an image, insert a special placeholder comment in the HTML
-   - Placeholder format: <!-- IMAGE_PLACEHOLDER:prompt_text:description -->
-   - For the first slide: include a placeholder for an image that visually represents the main presentation topic
-   - For other slides: include placeholders for images that illustrate key concepts or enhance understanding
-   - Image prompts should be descriptive and specific
-   - Description should be a brief alt text for the image
-   - Example: <!-- IMAGE_PLACEHOLDER:A beautiful sunset over mountains with digital art style:Sunset over mountains digital art-->
-   - DO NOT include actual base64 image data in the HTML
-   - DO NOT try to generate images yourself
-   - Just insert the placeholder comments where images should go
-
-Generate ONLY the HTML/CSS code. Do not include any explanations, markdown formatting, or additional text outside of the HTML document.`,
+Generate ONLY the slide sections based on SLIDES CONTENT. Do not include <!DOCTYPE html>, <html>, <head>, <style>, or <body> tags. Do not include any explanations or markdown formatting.`,
     ru: `Вы эксперт по веб-разработке, специализирующийся на создании профессиональных HTML/CSS слайдов для презентаций с AI-генерацией изображений.
 
-Создайте ПОЛНЫЙ, профессиональный HTML/CSS код для слайдов презентации со следующими требованиями:
-
-1. Создайте 5-7 слайдов, включающих:
-   - Титульный слайд с темой, аудиторией и продолжительностью - ОБЯЗАТЕЛЬНО включите AI-сгенерированное изображение, визуально представляющее основную тему
-   - Слайд с программой/структурой
-   - 3-5 основных слайдов с содержанием - включайте изображения там, где это уместно для улучшения понимания
-   - Заключительный/благодарственный слайд
-
-2. Требования к дизайну:
-   - Профессиональный, чистый дизайн
-   - Простой CSS для хорошей верстки для рендеринга html2canvas
-   - Включите визуальную иерархию (заголовки, подзаголовки, основной текст)
-   - Используйте цветовую схему, соответствующую профессиональной презентации
-   - Адаптивный дизайн, работающий на разных размерах экранов
-
-3. Требования к коду:
-   - Один HTML файл со встроенным CSS
-   - Включите номера слайдов
-   - Используйте семантические HTML5 элементы
-   - Включите правильные мета-теги в head
-   - Включите мета-тег viewport для адаптивности
-
-4. Требования к содержанию:
-   - Извлеките ключевую информацию из предоставленного контента
-   - Создайте четкие, краткие маркированные пункты, где это уместно
-   - Используйте соответствующую типографику (размеры шрифтов, начертания)
-   - Включите AI-сгенерированные изображения для визуального улучшения
-   - Убедитесь, что текст читаем с хорошим контрастом
-
-5. Требования к изображениям:
-   - ПЕРВЫЙ СЛАЙД ОБЯЗАТЕЛЬНО должен включать AI-сгенерированное изображение, визуально представляющее основную тему презентации
-   - Другие слайды должны включать изображения там, где они помогают объяснить концепции или делают слайд более привлекательным
-   - Изображения должны быть релевантны содержанию слайда
-   - Включите описательный alt текст для доступности
-
-6. Требования к диаграммам:
-   - Создайте простые CSS-диаграммы для ключевых концепций
-   - Используйте CSS-фигуры (круги, прямоугольники, линии) для представления отношений
-   - Используйте цветовое кодирование для разных элементов
-   - Включите метки для компонентов диаграмм
-
-7. ТРЕБОВАНИЯ ПОЛНОТЫ:
-   - Создайте ВЕСЬ HTML документ от начала до конца
-   - ОБЯЗАТЕЛЬНО начните с <!DOCTYPE html>
-   - ОБЯЗАТЕЛЬНО включите полные теги <html>, <head> и <body>
-   - ОБЯЗАТЕЛЬНО включите CSS стили в теге <style> в head
-   - ОБЯЗАТЕЛЬНО включите как минимум 5 слайдов с правильной структурой
-   - ОБЯЗАТЕЛЬНО закончите закрывающим тегом </html>
-   - НЕ обрезайте и НЕ оставляйте HTML неполным
-   - Убедитесь, что все теги правильно закрыты
-
-8. ИНСТРУКЦИИ ПО ЗАГЛУШКАМ ДЛЯ ИЗОБРАЖЕНИЙ:
-   - Когда вам нужно изображение, вставьте специальный комментарий-заглушку в HTML
-   - Формат заглушки: <!-- IMAGE_PLACEHOLDER:текст_промпта:описание -->
-   - Для первого слайда: включите заглушку для изображения, которое визуально представляет основную тему презентации
-   - Для других слайдов: включите заглушки для изображений, которые иллюстрируют ключевые концепции или улучшают понимание
-   - Промпты для изображений должны быть описательными и конкретными
-   - Описание должно быть кратким alt текстом для изображения
-   - Пример: <!-- IMAGE_PLACEHOLDER:Красивый закат над горами в стиле цифрового искусства:Закат над горами цифровое искусство-->
-   - НЕ включайте фактические данные base64 изображения в HTML
-   - НЕ пытайтесь генерировать изображения самостоятельно
-   - Просто вставляйте комментарии-заглушки там, где должны быть изображения
-
-Генерируйте ТОЛЬКО HTML/CSS код. Не включайте никаких объяснений, форматирования markdown или дополнительного текста вне HTML документа.`,
+Generate ONLY the slide sections based on SLIDES CONTENT. Do not include <!DOCTYPE html>, <html>, <head>, <style>, or <body> tags. Do not include any explanations or markdown formatting.`,
   },
 };
 

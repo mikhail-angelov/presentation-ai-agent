@@ -516,6 +516,7 @@ export const presentationActions = {
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
+      let tempContent = "";
       let fullContent = "";
       let imagePlaceholders: ImagePlaceholder[] = [];
 
@@ -532,11 +533,15 @@ export const presentationActions = {
               const data = JSON.parse(line.slice(6));
 
               if (data.chunk) {
-                fullContent += data.chunk;
+                tempContent += data.chunk;
+                dispatcher.setStreamingContent(tempContent);
+              } else if (data.type === "content_chunk" && data.fullChunk) {
+                fullContent += data.fullChunk;
                 dispatcher.setStreamingContent(fullContent);
               } else if (data.type === "final_completion" && data.done) {
                 const htmlContent = fullContent;
                 dispatcherHelpers.updateStepContentWithHtmlSync("htmlSlides", htmlContent);
+                imagePlaceholders = data.imagePlaceholders;
 
                 trackAction("generate_slides_html_stream_success", {
                   topic,
@@ -559,20 +564,16 @@ export const presentationActions = {
           }
         }
       }
-      //update image placeholder - extractImagePlaceholders function was removed
-      // imagePlaceholders = extractImagePlaceholders(fullContent)
-      // addToast(t("toasts.slidesGenerationCompleted") || "Slides generated, ready to generate images...", "info");
-
-      // dispatcherHelpers.updateStepContentWithHtmlSync("htmlSlides", fullContent);
-      // dispatcherHelpers.navigateToStep("htmlSlides");
-
-      // if (imagePlaceholders.length > 0) {
-      //   setTimeout(() => {
-      //     presentationActions.generateImages(fullContent, imagePlaceholders, options);
-      //   }, 1000);
-      // } else {
-      //   addToast(t("toasts.htmlSlidesGenerated"), "success");
-      // }
+      
+      dispatcherHelpers.navigateToStep("htmlSlides");
+      
+      if (imagePlaceholders.length > 0) {
+        setTimeout(() => {
+          presentationActions.generateImages(fullContent, imagePlaceholders, options);
+        }, 1000);
+      } else {
+        addToast(t("toasts.htmlSlidesGenerated"), "success");
+      }
 
     } catch (error) {
       console.error("Error generating slides:", error);
@@ -593,13 +594,13 @@ export const presentationActions = {
     }
   },
 
-  // Generate images for placeholders
+  // Generate images for placeholders - one by one
   async generateImages(
     htmlContent: string,
     placeholders: ImagePlaceholder[],
     options: PresentationServiceOptions
   ): Promise<void> {
-    const { addToast, t } = options;
+    const { addToast, t, trackAction } = options;
     
     try {
       dispatcher.setImageGenerationProgress({
@@ -611,39 +612,79 @@ export const presentationActions = {
       
       addToast(t("toasts.imageGenerationStarted") || `Generating ${placeholders.length} images...`, "info");
 
-      // Call the new image generation API to process all placeholders at once
-      const response = await fetch("/api/generate-images", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          htmlContent: htmlContent,
-        }),
-      });
+      let processedHtml = htmlContent;
+      let imagesGenerated = 0;
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      // Process each placeholder one by one
+      for (let i = 0; i < placeholders.length; i++) {
+        const placeholder = placeholders[i];
+        
+        // Update progress for current placeholder
+        dispatcher.setImageGenerationProgress({
+          isGenerating: true,
+          current: i,
+          total: placeholders.length,
+          currentPrompt: placeholder.prompt,
+        });
+
+        try {
+          // Call API to generate single image
+          const response = await fetch("/api/generate-images", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              htmlContent: processedHtml,
+              placeholderIndex: i,
+              placeholder: {
+                prompt: placeholder.prompt,
+                description: placeholder.description,
+                type: placeholder.type,
+              },
+            }),
+          });
+
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+
+          const result = await response.json();
+          
+          if (result.success && result.htmlContent) {
+            processedHtml = result.htmlContent;
+            imagesGenerated++;
+            
+            // Update the displayed HTML after each image
+            dispatcherHelpers.updateStepContentWithHtmlSync("htmlSlides", processedHtml);
+            dispatcher.setStreamingContent(processedHtml);
+            
+            console.log(`✅ Generated image ${i + 1}/${placeholders.length}: "${placeholder.prompt}"`);
+          } else {
+            console.error(`❌ Failed to generate image ${i + 1}:`, result.error);
+          }
+        } catch (error) {
+          console.error(`❌ Error generating image ${i + 1}:`, error);
+          // Continue with next placeholder even if one fails
+        }
       }
 
-      const result = await response.json();
+      // Update progress to show completion
+      dispatcher.setImageGenerationProgress({
+        isGenerating: false,
+        current: placeholders.length,
+        total: placeholders.length,
+        currentPrompt: "",
+      });
       
-      if (result.success && result.htmlContent) {
-        // Update progress to show completion
-        dispatcher.setImageGenerationProgress({
-          isGenerating: false,
-          current: result.imagesGenerated || 0,
-          total: result.totalPlaceholders || placeholders.length,
-          currentPrompt: "",
+      addToast(t("toasts.imageGenerationCompleted") || `Generated ${imagesGenerated} of ${placeholders.length} images`, "success");
+      
+      // Track completion
+      if (trackAction) {
+        trackAction("image_generation_completed", {
+          totalPlaceholders: placeholders.length,
+          imagesGenerated,
         });
-        
-        // Update the displayed HTML with all images
-        dispatcherHelpers.updateStepContentWithHtmlSync("htmlSlides", result.htmlContent);
-        dispatcher.setStreamingContent(result.htmlContent);
-        
-        addToast(t("toasts.imageGenerationCompleted") || `Generated ${result.imagesGenerated || 0} of ${result.totalPlaceholders || placeholders.length} images`, "success");
-      } else {
-        throw new Error(result.error || "Failed to generate images");
       }
 
     } catch (error) {

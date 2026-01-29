@@ -54,7 +54,7 @@ async function* runAgentForSlides(
   // Get appropriate system prompt using the helper function
   const systemPrompt = getSystemPrompt(stepType, language);
   const systemMessage = new SystemMessage(systemPrompt);
-  
+  console.log('-----',systemPrompt)
   // Initial messages
   const messages: (SystemMessage | HumanMessage)[] = [
     systemMessage,
@@ -100,4 +100,77 @@ async function* runAgentForSlides(
   }
 }
 
-export { runAgentForSlides };
+// Helper function to extract image placeholders from HTML
+function extractImagePlaceholders(htmlContent: string): Array<{
+  fullMatch: string;
+  prompt: string;
+  description: string;
+  type: string;
+}> {
+  const placeholders = [];
+
+  // Format 1: Comment placeholders
+  const commentPlaceholderRegex = /<!-- IMAGE_PLACEHOLDER:(.+?):(.+?)-->/g;
+  let match;
+
+  while ((match = commentPlaceholderRegex.exec(htmlContent)) !== null) {
+    placeholders.push({
+      fullMatch: match[0],
+      prompt: match[1].trim(),
+      description: match[2].trim(),
+      type: "comment",
+    });
+  }
+
+  // Format 2: Div placeholders with data-prompt attribute
+  const divWithDataPromptRegex =
+    /<div\s+class="image-placeholder"\s+data-prompt="([^"]+)"[^>]*>([^<]*)<\/div>/gi;
+  let divDataMatch;
+
+  while ((divDataMatch = divWithDataPromptRegex.exec(htmlContent)) !== null) {
+    const prompt = divDataMatch[1].trim();
+    const innerText = divDataMatch[2].trim();
+    
+    // Extract description from innerText (e.g., "Image: Team collaboration" -> "Team collaboration")
+    let description = innerText;
+    if (innerText.startsWith("Image:")) {
+      description = innerText.substring(6).trim();
+    }
+
+    placeholders.push({
+      fullMatch: divDataMatch[0],
+      prompt: prompt,
+      description: description || prompt,
+      type: "div-data-prompt",
+    });
+  }
+
+  // Format 3: Div placeholders without data-prompt (old format, fallback)
+  const divPlaceholderRegex =
+    /<div\s+class="image-placeholder"(?!\s+data-prompt)[^>]*>([^<]+)<\/div>/gi;
+  let divMatch;
+
+  while ((divMatch = divPlaceholderRegex.exec(htmlContent)) !== null) {
+    const fullText = divMatch[1].trim();
+    let prompt = fullText;
+    let description = fullText;
+
+    // Check if it has a colon separator
+    const colonIndex = fullText.indexOf(":");
+    if (colonIndex > -1) {
+      prompt = fullText.substring(0, colonIndex).trim();
+      description = fullText.substring(colonIndex + 1).trim();
+    }
+
+    placeholders.push({
+      fullMatch: divMatch[0],
+      prompt: prompt,
+      description: description,
+      type: "div",
+    });
+  }
+
+  return placeholders;
+}
+
+export { runAgentForSlides, extractImagePlaceholders };

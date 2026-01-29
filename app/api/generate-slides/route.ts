@@ -1,35 +1,7 @@
 import { NextRequest } from "next/server";
 import { SESSION_COOKIE_NAME } from "@/app/types/session";
-import { runAgentForSlides } from "@/app/lib/agent/deepseekAgentForSlides";
+import { extractImagePlaceholders, runAgentForSlides } from "@/app/lib/agent/deepseekAgentForSlides";
 import { sessionStore, generateUUID } from "@/app/lib/session/supabaseStore";
-
-// Helper function to safely stringify HTML content for JSON
-function safeStringifyForSSE(data: any): string {
-  try {
-    // Create a copy of the data
-    const processedData = { ...data };
-    
-    // If there's HTML content, encode it as base64 to avoid JSON escaping issues
-    if (processedData.content && typeof processedData.content === 'string') {
-      // Convert to base64
-      processedData.contentBase64 = Buffer.from(processedData.content).toString('base64');
-      // Remove the raw content to avoid JSON parsing issues
-      delete processedData.content;
-    }
-    
-    // Use JSON.stringify - it should handle base64 strings fine
-    return JSON.stringify(processedData);
-  } catch (error) {
-    console.error('Error stringifying data for SSE:', error);
-    // Fallback: send minimal data
-    return JSON.stringify({
-      type: data.type || 'error',
-      done: data.done || false,
-      error: 'Failed to serialize content',
-      fallback: true
-    });
-  }
-}
 
 // Generate HTML/CSS slides using LLM with streaming
 async function* generateSlidesHTMLStream(
@@ -43,9 +15,6 @@ async function* generateSlidesHTMLStream(
 ): AsyncGenerator<string> {
   const prompt = `Generate HTML sections for individual presentation slides based on the following content. DO NOT generate the full HTML document - only generate the slide sections.
 
-PRESENTATION TOPIC: ${topic}
-TARGET AUDIENCE: ${audience || "General audience"}
-PRESENTATION DURATION: ${duration || "10"} minutes
 
 SLIDES CONTENT:
 ${slidesContent || "No slides content provided"}
@@ -66,10 +35,9 @@ IMPORTANT INSTRUCTIONS:
    - A slide number indicator (use <div class="slide-number">Slide X of Y</div>)
 6. First slide should have class="slide first-slide" and be a title slide - MUST include an AI-generated image that visually represents the main presentation topic
 7. Last slide should have class="slide last-slide" and be a conclusion slide
-8. Other slides should have class="slide" - include images where they help explain concepts or make the slide more engaging
-9. Make sure content is well-organized and visually appealing
 
 IMAGE REQUIREMENTS:
+- NO MORE THAN ONE OR ZERO IMAGE PER SLIDE 
 - FIRST SLIDE MUST include an image placeholder that visually represents the main presentation topic
 - Other slides should include image placeholders where they help explain concepts or make the slide more engaging
 - Use the following format for image placeholders: <!-- IMAGE_PLACEHOLDER:detailed description for image generation:brief description -->
@@ -187,52 +155,11 @@ export async function POST(request: NextRequest) {
             `Streamed ${chunkCount} chunks, total length: ${fullContent.length} chars`,
           );
 
-          // Ensure we have a valid template
-          let finalHtml = fullContent; // Default to just the slides
-          
-          if (templateHtml && templateHtml.includes("<!-- Replace me with Slides html-->")) {
-            // Use the template if it has the right placeholder
-            finalHtml = templateHtml.replace(
+          const finalHtml = templateHtml.replace(
               "<!-- Replace me with Slides html-->",
               fullContent,
             );
-          } else if (templateHtml) {
-            // Try to find any placeholder in the template
-            const placeholderMatch = templateHtml.match(/<!--\s*SLIDES\s*CONTENT\s*-->/i) || 
-                                    templateHtml.match(/<!--\s*INSERT\s*SLIDES\s*HERE\s*-->/i) ||
-                                    templateHtml.match(/<!--\s*REPLACE\s*ME\s*-->/i);
-            
-            if (placeholderMatch) {
-              finalHtml = templateHtml.replace(placeholderMatch[0], fullContent);
-            } else {
-              // If no placeholder found, append slides to template
-              finalHtml = templateHtml + "\n" + fullContent;
-            }
-          }
           
-          // Ensure finalHtml is a complete HTML document
-          if (!finalHtml.includes("<!DOCTYPE html>") && !finalHtml.includes("<html")) {
-            // Wrap in a basic HTML structure
-            finalHtml = `<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Presentation Slides</title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background: #f5f5f5; }
-        .slide { background: white; border-radius: 10px; padding: 30px; margin-bottom: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        .first-slide { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
-        .slide-title { font-size: 2em; margin-bottom: 20px; }
-        .slide-number { position: absolute; bottom: 10px; right: 10px; font-size: 0.8em; color: #666; }
-        img { max-width: 100%; height: auto; border-radius: 8px; margin: 10px 0; }
-    </style>
-</head>
-<body>
-${finalHtml}
-</body>
-</html>`;
-          }
 
           // Calculate processing time and token usage
           const actionDuration = Date.now() - actionStartTime;
@@ -271,7 +198,7 @@ ${finalHtml}
             const chunk = finalHtml.substring(i, i + chunkSize);
             const chunkEvent = {
               type: "content_chunk",
-              chunk: chunk,
+              fullChunk: chunk,
               isFinal: i + chunkSize >= finalHtml.length,
               totalChunks: Math.ceil(finalHtml.length / chunkSize),
               currentChunk: Math.floor(i / chunkSize) + 1
@@ -288,7 +215,7 @@ ${finalHtml}
           }
 
           // Define empty placeholders array since extractImagePlaceholders function was removed
-          const placeholders = [];
+          const placeholders = extractImagePlaceholders(finalHtml);
 
           // Send final completion event
           const finalEvent = {
@@ -299,7 +226,7 @@ ${finalHtml}
             duration: actionDuration,
             sessionId,
             actionId,
-            imagePlaceholders: placeholders.length,
+            imagePlaceholders: placeholders,
             message: "Presentation slides generated successfully. Use /api/generate-images to generate images for placeholders."
           };
           
