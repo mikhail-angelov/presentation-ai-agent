@@ -41,11 +41,11 @@ async function runTest() {
       const imageBase64WithFile = await generateImage(prompt, true);
       const duration2 = Date.now() - startTime2;
       
-      console.log(`     ✅ Success! Generated ${imageBase64WithFile.length} characters of base64`);
+      console.log(`     ✅ Success! Generated ${imageBase64WithFile?.length} characters of base64`);
       console.log(`     ⏱️  Time: ${duration2}ms`);
 
       // Verify both results are similar (not necessarily identical due to randomness)
-      if ( imageBase64WithFile.length > 1000) {
+      if ( imageBase64WithFile && imageBase64WithFile.length > 1000) {
         console.log(`     📊 results are valid base64 strings`);
       }
 

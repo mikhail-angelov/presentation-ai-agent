@@ -51,7 +51,7 @@ async function createIamToken() {
 export const generateImage = async (
   prompt: string,
   saveToFile: boolean = false,
-): Promise<string> => {
+): Promise<string|null> => {
   // curl  --request POST   --header "Authorization: Bearer ..."  --data "@prompt.json" "https://llm.api.cloud.yandex.net/foundationModels/v1/imageGenerationAsync"
   const aim_jwt_token = await createIamToken();
   const response = await fetch(
@@ -81,7 +81,8 @@ export const generateImage = async (
   );
 
   if (!response.ok) {
-    throw new Error(`Yandex ML API error: ${response.statusText}`);
+    console.error(`Yandex ML API error: ${response.statusText}`);
+    return null
   }
 
   const data = await response.json();
@@ -105,9 +106,10 @@ export const generateImage = async (
     );
 
     if (!pollResponse.ok) {
-      throw new Error(
-        `Yandex ML API polling error: ${pollResponse.statusText}`,
+      console.error(
+        `Yandex ML API polling error (https://llm.api.cloud.yandex.net/operations/${operationId}): ${pollResponse.statusText}`,
       );
+      return null
     }
 
     result = await pollResponse.json();
@@ -119,7 +121,8 @@ export const generateImage = async (
   }
 
   if (!result.done) {
-    throw new Error("Yandex ML API operation did not complete in time");
+    console.error("Yandex ML API operation did not complete in time");
+    return null
   }
 
   const imageBase64 = result.response.image;

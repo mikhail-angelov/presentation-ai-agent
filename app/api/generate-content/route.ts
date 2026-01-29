@@ -175,15 +175,3 @@ Generate comprehensive presentation content.`;
   }
 }
 
-export async function GET() {
-  return NextResponse.json({
-    message:
-      "Use POST method with JSON body containing: topic, audience, duration, keyPoints",
-    example: {
-      topic: "The Future of AI in Education",
-      audience: "educators",
-      duration: "15",
-      keyPoints: ["Personalized learning", "Automated grading", "AI tutors"],
-    },
-  });
-}
