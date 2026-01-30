@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import Header from "./components/shared/Header";
 import PresentationSetup from "./components/presentation/PresentationSetup";
 import OutlineStep from "./components/presentation/OutlineStep";
@@ -16,6 +16,8 @@ import { useTranslation } from "./hooks/useTranslation";
 import { StepType } from "./types/steps";
 import { useToast } from "./contexts/ToastContext";
 import SlidesPreviewModal from "./components/shared/SlidesPreviewModal";
+import RateLimitModal from "./components/shared/RateLimitModal";
+import FeedbackModal from "./components/shared/FeedbackModal";
 import { useStore } from "./lib/flux/store";
 import { dispatcher, dispatcherHelpers } from "./lib/flux/dispatcher";
 
@@ -38,6 +40,27 @@ export default function Home() {
     presentationActions,
     presentationOptions,
   } = useStore();
+
+  // Modal states
+  const [showRateLimitModal, setShowRateLimitModal] = useState(false);
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+
+  // Check if user has exceeded rate limit
+  const hasExceededRateLimit = rateLimit.used >= rateLimit.limit;
+
+  // Helper function to check rate limit before performing actions
+  const checkRateLimit = (actionName: string) => {
+    if (hasExceededRateLimit) {
+      setShowRateLimitModal(true);
+      trackAction("rate_limit_exceeded", {
+        action: actionName,
+        used: rateLimit.used,
+        limit: rateLimit.limit,
+      });
+      return false;
+    }
+    return true;
+  };
 
   // Helper functions
   const navigateToStep = (step: StepType) => {
@@ -140,6 +163,8 @@ export default function Home() {
 
   // Step 1: Generate Outline
   const handleGenerateOutline = async () => {
+    if (!checkRateLimit("generate_outline")) return;
+    
     try {
       await presentationActions.generateOutline(
         stepContents.setup,
@@ -152,6 +177,8 @@ export default function Home() {
 
   // Step 2: Generate Speech from Outline
   const handleGenerateSpeech = async () => {
+    if (!checkRateLimit("generate_speech")) return;
+    
     try {
       await presentationActions.generateSpeech(
         stepContents.setup,
@@ -165,6 +192,8 @@ export default function Home() {
 
   // Step 3: Generate Slides from Speech
   const handleGenerateSlides = async () => {
+    if (!checkRateLimit("generate_slides")) return;
+    
     try {
       await presentationActions.generateSlides(
         stepContents.setup,
@@ -177,6 +206,8 @@ export default function Home() {
   };
 
   const handleGenerateHtmlSlides = async () => {
+    if (!checkRateLimit("generate_html_slides")) return;
+    
     try {
       await presentationActions.generateHtmlSlides(
         stepContents.setup,
@@ -185,6 +216,36 @@ export default function Home() {
       );
     } catch (error) {
       console.error("Error completing presentation:", error);
+    }
+  };
+
+  // Handle feedback submission
+  const handleFeedbackSubmit = async (feedback: {
+    type: "feedback" | "recommendation" | "issue";
+    message: string;
+    email?: string;
+  }) => {
+    try {
+      const response = await fetch("/api/feedback", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(feedback),
+      });
+
+      if (response.ok) {
+        addToast(t("feedback.thankYou"), "success");
+        trackAction("feedback_submitted", {
+          type: feedback.type,
+          hasEmail: !!feedback.email,
+        });
+      } else {
+        addToast(t("feedback.submitFailed"), "error");
+      }
+    } catch (error) {
+      console.error("Error submitting feedback:", error);
+      addToast(t("feedback.submitFailed"), "error");
     }
   };
 
@@ -301,6 +362,7 @@ export default function Home() {
       <div className="flex-1 flex flex-col p-4 md:p-8 h-full overflow-hidden">
         <div className="max-w-7xl mx-auto flex flex-col h-full">
           <Header
+            onFeedback={()=>setShowFeedbackModal(true)}
             onSave={handleSavePresentation}
             onLoad={handleLoadPresentation}
           />
@@ -354,6 +416,24 @@ export default function Home() {
           topic={stepContents.setup.topic}
         />
       )}
+
+      {/* Rate Limit Modal */}
+      <RateLimitModal
+        isOpen={showRateLimitModal}
+        onClose={() => setShowRateLimitModal(false)}
+        rateLimit={rateLimit}
+        onFeedbackClick={() => {
+          setShowRateLimitModal(false);
+          setShowFeedbackModal(true);
+        }}
+      />
+
+      {/* Feedback Modal */}
+      <FeedbackModal
+        isOpen={showFeedbackModal}
+        onClose={() => setShowFeedbackModal(false)}
+        onSubmit={handleFeedbackSubmit}
+      />
     </div>
   );
 }

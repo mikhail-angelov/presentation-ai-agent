@@ -4,21 +4,20 @@ import { Presentation, Zap, Menu, Save, FolderOpen, Sparkles } from "lucide-reac
 import { useTranslation } from "@/app/hooks/useTranslation";
 import { useSession } from "@/app/hooks/useSession";
 import LanguageSwitcher from "./LanguageSwitcher";
-import FeedbackModal from "./FeedbackModal";
 import { useToast } from "@/app/contexts/ToastContext";
 import { useState, useRef, useEffect } from "react";
 
 interface HeaderProps {
+  onFeedback: () => void;
   onSave: () => void;
   onLoad: (data: any) => void;
 }
 
-export default function Header({ onSave, onLoad }: HeaderProps) {
+export default function Header({ onFeedback, onSave, onLoad }: HeaderProps) {
   const { t } = useTranslation();
   const { addToast } = useToast();
   const { session } = useSession();
   const [menuOpen, setMenuOpen] = useState(false);
-  const [feedbackModalOpen, setFeedbackModalOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -149,7 +148,7 @@ export default function Header({ onSave, onLoad }: HeaderProps) {
           <div className="flex items-center gap-4">
             {/* Sparkling Feedback Button */}
             <button
-              onClick={() => setFeedbackModalOpen(true)}
+              onClick={onFeedback}
               className="relative flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-medium rounded-lg hover:from-purple-600 hover:to-pink-600 transition-all shadow-lg hover:shadow-xl active:scale-95 group overflow-hidden"
               aria-label="Share feedback"
             >
@@ -220,12 +219,6 @@ export default function Header({ onSave, onLoad }: HeaderProps) {
           </div>
         </div>
       </header>
-
-      <FeedbackModal
-        isOpen={feedbackModalOpen}
-        onClose={() => setFeedbackModalOpen(false)}
-        onSubmit={handleFeedbackSubmit}
-      />
 
       <style jsx global>{`
         @keyframes sparkle {

@@ -235,5 +235,19 @@
       "issue": "Issue",
       "issueDesc": "Report a bug or problem"
     }
+  },
+  "rateLimitModal": {
+    "title": "Thank You for Using Our App!",
+    "subtitle": "You've reached the usage limit for this demo.",
+    "appreciation": "We appreciate you trying out our AI-powered presentation tool!",
+    "purposeTitle": "About This Demo",
+    "purposeDescription": "This application demonstrates how AI agents can generate useful presentation content including outlines, speeches, and slides.",
+    "limitsTitle": "Usage Limits",
+    "limitsDescription": "Each AI request requires token budget and is limited for free usage. You've used ",
+    "limitsSuffix": " requests.",
+    "feedbackTitle": "Share Your Feedback",
+    "feedbackDescription": "We'd love to hear your thoughts about this AI presentation tool!",
+    "feedbackButton": "Share Feedback",
+    "closeButton": "Close"
   }
 }
