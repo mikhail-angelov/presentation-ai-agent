@@ -40,9 +40,22 @@ IMAGE REQUIREMENTS:
 - NO MORE THAN ONE OR ZERO IMAGE PER SLIDE 
 - FIRST SLIDE MUST include an image placeholder that visually represents the main presentation topic
 - Other slides should include image placeholders where they help explain concepts or make the slide more engaging
-- Use the following format for image placeholders: <!-- IMAGE_PLACEHOLDER:detailed description for image generation:brief description -->
+
+IMAGE PLACEHOLDER FORMATS:
+1. For regular images: <!-- IMAGE_PLACEHOLDER:detailed description for image generation:brief description -->
+   Example: <!-- IMAGE_PLACEHOLDER:A professional business meeting with diverse team members discussing charts and graphs on a large screen:Team collaboration meeting -->
+
+2. For background images (full slide backgrounds): <!-- BACKGROUND_IMAGE_PLACEHOLDER:detailed description for image generation:brief description -->
+   Example: <!-- BACKGROUND_IMAGE_PLACEHOLDER:A futuristic abstract background with glowing circuits and data streams:Tech background -->
+
+3. For background images in style attributes: style="<!-- BACKGROUND_IMAGE_PLACEHOLDER:detailed description:brief description -->"
+   Example: <section class="slide" style="<!-- BACKGROUND_IMAGE_PLACEHOLDER:A serene mountain landscape at sunrise:Nature background -->">
+
+4. For data attribute background images: <section data-background-image="detailed description">
+   Example: <section data-background-image="Abstract geometric pattern with vibrant colors">
+
 - Make prompts detailed and specific for better image generation
-- Example: <!-- IMAGE_PLACEHOLDER:A professional business meeting with diverse team members discussing charts and graphs on a large screen:Team collaboration meeting -->
+- For first slide, consider using a background image that represents the main topic
 
 AVAILABLE CSS CLASSES FROM TEMPLATE:
 - .slide (base slide class)

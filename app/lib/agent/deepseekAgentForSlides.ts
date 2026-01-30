@@ -106,10 +106,12 @@ function extractImagePlaceholders(htmlContent: string): Array<{
   prompt: string;
   description: string;
   type: string;
+  isBackground?: boolean;
+  targetElement?: string;
 }> {
   const placeholders = [];
 
-  // Format 1: Comment placeholders
+  // Format 1: Comment placeholders (regular images)
   const commentPlaceholderRegex = /<!-- IMAGE_PLACEHOLDER:(.+?):(.+?)-->/g;
   let match;
 
@@ -119,10 +121,25 @@ function extractImagePlaceholders(htmlContent: string): Array<{
       prompt: match[1].trim(),
       description: match[2].trim(),
       type: "comment",
+      isBackground: false,
     });
   }
 
-  // Format 2: Div placeholders with data-prompt attribute
+  // Format 2: Background image placeholders (special format)
+  const backgroundPlaceholderRegex = /<!--\s*BACKGROUND_IMAGE_PLACEHOLDER:([^:]+):([^>]+)-->/g;
+  let bgMatch;
+
+  while ((bgMatch = backgroundPlaceholderRegex.exec(htmlContent)) !== null) {
+    placeholders.push({
+      fullMatch: bgMatch[0],
+      prompt: bgMatch[1].trim(),
+      description: bgMatch[2].trim(),
+      type: "background-comment",
+      isBackground: true,
+    });
+  }
+
+  // Format 3: Div placeholders with data-prompt attribute
   const divWithDataPromptRegex =
     /<div\s+class="image-placeholder"\s+data-prompt="([^"]+)"[^>]*>([^<]*)<\/div>/gi;
   let divDataMatch;
@@ -137,15 +154,20 @@ function extractImagePlaceholders(htmlContent: string): Array<{
       description = innerText.substring(6).trim();
     }
 
+    // Check if it's a background placeholder by looking for background-related keywords
+    const isBackground = innerText.toLowerCase().includes('background') || 
+                         prompt.toLowerCase().includes('background');
+
     placeholders.push({
       fullMatch: divDataMatch[0],
       prompt: prompt,
       description: description || prompt,
       type: "div-data-prompt",
+      isBackground: isBackground,
     });
   }
 
-  // Format 3: Div placeholders without data-prompt (old format, fallback)
+  // Format 4: Div placeholders without data-prompt (old format, fallback)
   const divPlaceholderRegex =
     /<div\s+class="image-placeholder"(?!\s+data-prompt)[^>]*>([^<]+)<\/div>/gi;
   let divMatch;
@@ -162,11 +184,51 @@ function extractImagePlaceholders(htmlContent: string): Array<{
       description = fullText.substring(colonIndex + 1).trim();
     }
 
+    // Check if it's a background placeholder
+    const isBackground = fullText.toLowerCase().includes('background') || 
+                         prompt.toLowerCase().includes('background');
+
     placeholders.push({
       fullMatch: divMatch[0],
       prompt: prompt,
       description: description,
       type: "div",
+      isBackground: isBackground,
+    });
+  }
+
+  // Format 5: Style attribute placeholders (for background images)
+  // Match style="<!-- BACKGROUND_IMAGE_PLACEHOLDER:prompt:description -->" 
+  // The ? after [^"]* makes it non-greedy to avoid consuming the closing quote
+  // Use [^>]* for description to match everything up to -->
+  const stylePlaceholderRegex = /style="[^"]*?<!--\s*BACKGROUND_IMAGE_PLACEHOLDER:([^:]+):([^>]+)-->\s*"/g;
+  let styleMatch;
+
+  while ((styleMatch = stylePlaceholderRegex.exec(htmlContent)) !== null) {
+    placeholders.push({
+      fullMatch: styleMatch[0],
+      prompt: styleMatch[1].trim(),
+      description: styleMatch[2].trim(),
+      type: "style-background",
+      isBackground: true,
+    });
+  }
+
+  // Format 6: Data attributes for background images
+  const dataBackgroundRegex = /<([a-zA-Z][a-zA-Z0-9]*)[^>]*\s+data-background-image="([^"]+)"[^>]*>/g;
+  let dataBgMatch;
+
+  while ((dataBgMatch = dataBackgroundRegex.exec(htmlContent)) !== null) {
+    const element = dataBgMatch[1];
+    const prompt = dataBgMatch[2].trim();
+    
+    placeholders.push({
+      fullMatch: dataBgMatch[0],
+      prompt: prompt,
+      description: `Background image for ${element}`,
+      type: "data-background",
+      isBackground: true,
+      targetElement: element,
     });
   }
 
