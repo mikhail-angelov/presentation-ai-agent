@@ -74,19 +74,27 @@ export const dispatcherHelpers = {
     }
   },
 
-  // Add LLM request and update rate limit
+  // Add LLM request and update rate limit based on actual LLM requests
   addLLMRequestWithRateLimit: (request: Parameters<typeof actionCreators.addLLMRequest>[0], sessionActionsLength?: number) => {
     dispatcher.addLLMRequest(request);
     
-    // Update used count based on session actions if available, otherwise increment
+    // Update rate limit based on actual LLM requests count
     const currentState = store.getState();
-    const newUsed = sessionActionsLength 
-      ? Math.min(sessionActionsLength, currentState.rateLimit.limit)
-      : Math.min(currentState.rateLimit.used + 1, currentState.rateLimit.limit);
+    
+    // Count only successful LLM requests (not errors)
+    const successfulLLMRequests = currentState.llmRequests.filter(req => req.status === "success").length;
+    // Add 1 for the new request if it's successful
+    const newRequestCount = request.status === "success" ? successfulLLMRequests + 1 : successfulLLMRequests;
+    
+    // Calculate total tokens used
+    const totalTokensUsed = [...currentState.llmRequests, request]
+      .filter(req => req.status === "success")
+      .reduce((sum, req) => sum + (req.tokensUsed || 0), 0);
     
     dispatcher.setRateLimit({
       ...currentState.rateLimit,
-      used: newUsed,
+      used: Math.min(newRequestCount, currentState.rateLimit.limit),
+      tokensUsed: totalTokensUsed,
     });
   },
 

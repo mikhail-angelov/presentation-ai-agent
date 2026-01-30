@@ -54,6 +54,7 @@ const initialState: AppState = {
   rateLimit: {
     used: 0,
     limit: 10,
+    tokensUsed: 0,
   },
   isGenerating: false,
   streamingContent: "",
