@@ -77,14 +77,20 @@ export const presentationActions = {
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let fullContent = "";
+      let buffer = "";
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
 
         const chunk = decoder.decode(value);
-        const lines = chunk.split("\n");
-
+        buffer += chunk;
+        
+        // Process complete lines
+        const lines = buffer.split("\n");
+        // Keep the last incomplete line in buffer
+        buffer = lines.pop() || "";
+        
         for (const line of lines) {
           if (line.startsWith("data: ")) {
             try {
@@ -136,6 +142,8 @@ export const presentationActions = {
               }
             } catch (e) {
               console.error("Error parsing SSE data:", e);
+              // Don't throw here, just log and continue
+              // The error might be due to incomplete JSON that will be completed in next chunk
             }
           }
         }
@@ -225,14 +233,20 @@ export const presentationActions = {
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let fullContent = "";
+      let buffer = "";
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
 
         const chunk = decoder.decode(value);
-        const lines = chunk.split("\n");
-
+        buffer += chunk;
+        
+        // Process complete lines
+        const lines = buffer.split("\n");
+        // Keep the last incomplete line in buffer
+        buffer = lines.pop() || "";
+        
         for (const line of lines) {
           if (line.startsWith("data: ")) {
             try {
@@ -281,6 +295,8 @@ export const presentationActions = {
               }
             } catch (e) {
               console.error("Error parsing SSE data:", e);
+              // Don't throw here, just log and continue
+              // The error might be due to incomplete JSON that will be completed in next chunk
             }
           }
         }
@@ -370,14 +386,20 @@ export const presentationActions = {
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let fullContent = "";
+      let buffer = "";
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
 
         const chunk = decoder.decode(value);
-        const lines = chunk.split("\n");
-
+        buffer += chunk;
+        
+        // Process complete lines
+        const lines = buffer.split("\n");
+        // Keep the last incomplete line in buffer
+        buffer = lines.pop() || "";
+        
         for (const line of lines) {
           if (line.startsWith("data: ")) {
             try {
@@ -426,6 +448,8 @@ export const presentationActions = {
               }
             } catch (e) {
               console.error("Error parsing SSE data:", e);
+              // Don't throw here, just log and continue
+              // The error might be due to incomplete JSON that will be completed in next chunk
             }
           }
         }
@@ -519,14 +543,20 @@ export const presentationActions = {
       let tempContent = "";
       let fullContent = "";
       let imagePlaceholders: ImagePlaceholder[] = [];
+      let buffer = "";
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
 
         const chunk = decoder.decode(value);
-        const lines = chunk.split("\n");
-
+        buffer += chunk;
+        
+        // Process complete lines
+        const lines = buffer.split("\n");
+        // Keep the last incomplete line in buffer
+        buffer = lines.pop() || "";
+        
         for (const line of lines) {
           if (line.startsWith("data: ")) {
             try {
@@ -560,6 +590,8 @@ export const presentationActions = {
               }
             } catch (e) {
               console.error("Error parsing SSE data:", e);
+              // Don't throw here, just log and continue
+              // The error might be due to incomplete JSON that will be completed in next chunk
             }
           }
         }
