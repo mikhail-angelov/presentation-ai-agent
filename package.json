@@ -12,6 +12,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.978.0",
     "@langchain/core": "^1.1.13",
     "@langchain/deepseek": "^1.0.5",
     "@supabase/supabase-js": "^2.91.1",

@@ -179,13 +179,24 @@
       "fileSize": "File Size"
     },
     "buttons": {
-      "preview": "Preview Slides",
+      "preview": "Preview",
       "download": "Download HTML",
-      "copy": "Copy HTML"
+      "copy": "Copy HTML",
+      "share": "Share"
     },
     "preview": {
       "title": "HTML Code Preview",
       "subtitle": "Full HTML code - editable"
+    },
+    "share": {
+      "successTitle": "Presentation shared successfully!",
+      "successMessage": "The link has been copied to your clipboard. Anyone with this link can view the presentation.",
+      "copyButton": "Copy",
+      "copied": "Copied!",
+      "sharing": "Sharing...",
+      "noSessionError": "No session found. Please refresh the page.",
+      "noContentError": "No HTML content to share.",
+      "failedError": "Failed to share presentation. Please try again."
     }
   },
   "streamingDisplay": {
