@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { SESSION_COOKIE_NAME } from "@/app/types/session";
 import { runAgentStream } from "@/app/lib/agent/deepseekAgent";
-import { sessionStore, generateUUID } from "@/app/lib/session/supabaseStore";
+import { sessionStore, generateUUID } from "@/app/lib/services/supabaseStore";
 
 // Streaming endpoint for real-time LLM feedback
 export async function POST(request: NextRequest) {

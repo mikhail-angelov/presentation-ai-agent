@@ -93,7 +93,9 @@ IMPORTANT INSTRUCTIONS:
 
 IMAGE REQUIREMENTS:
 - FIRST SLIDE MUST include an image placeholder that visually represents the main presentation topic
-- Other slides should include image placeholders where they help explain concepts or make the slide more engaging
+- IMPORTANT: Generate NO MORE THAN 3 IMAGES TOTAL for the entire presentation
+- Select only the most important slides for images (title slide + 2 key concept slides)
+- Other slides should NOT include image placeholders unless absolutely necessary
 - Use the following format for image placeholders: <!-- IMAGE_PLACEHOLDER:detailed description for image generation:brief description -->
 - Make prompts detailed and specific for better image generation
 - Example: <!-- IMAGE_PLACEHOLDER:A professional business meeting with diverse team members discussing charts and graphs on a large screen:Team collaboration meeting -->
@@ -118,7 +120,45 @@ AVAILABLE CSS CLASSES FROM TEMPLATE:
 Generate ONLY the slide sections based on SLIDES CONTENT. Do not include <!DOCTYPE html>, <html>, <head>, <style>, or <body> tags. Do not include any explanations or markdown formatting.`,
     ru: `Вы эксперт по веб-разработке, специализирующийся на создании профессиональных HTML/CSS слайдов для презентаций с AI-генерацией изображений.
 
-Generate ONLY the slide sections based on SLIDES CONTENT. Do not include <!DOCTYPE html>, <html>, <head>, <style>, or <body> tags. Do not include any explanations or markdown formatting.`,
+ВАЖНЫЕ ИНСТРУКЦИИ:
+1. Генерируйте ТОЛЬКО секции слайдов (<section> элементы) - НЕ весь HTML документ
+2. Каждый слайд должен быть отдельным элементом <section> с соответствующими классами
+3. Используйте CSS классы из базового шаблона, когда это возможно (например, .slide, .slide-title, .content-block, .points-list и т.д.)
+4. Вы также можете использовать inline стили при необходимости для специфического оформления
+5. Каждый слайд должен иметь:
+   - Заголовок (используйте <h1> или <h2> с соответствующими классами)
+   - Контент (параграфы, списки и т.д.)
+   - Индикатор номера слайда (используйте <div class="slide-number">Слайд X из Y</div>)
+6. Первый слайд должен иметь class="slide first-slide" и быть титульным слайдом - ОБЯЗАТЕЛЬНО должен включать AI-сгенерированное изображение, которое визуально представляет основную тему презентации
+7. Последний слайд должен иметь class="slide last-slide" и быть заключительным слайдом
+
+ТРЕБОВАНИЯ К ИЗОБРАЖЕНИЯМ:
+- ПЕРВЫЙ СЛАЙД ОБЯЗАТЕЛЬНО должен включать placeholder для изображения, которое визуально представляет основную тему презентации
+- ВАЖНО: Генерируйте НЕ БОЛЕЕ 3 ИЗОБРАЖЕНИЙ ВСЕГО для всей презентации
+- Выбирайте только самые важные слайды для изображений (титульный слайд + 2 слайда с ключевыми концепциями)
+- Другие слайды НЕ должны включать placeholders для изображений, если это не абсолютно необходимо
+- Используйте следующий формат для placeholders изображений: <!-- IMAGE_PLACEHOLDER:подробное описание для генерации изображения:краткое описание -->
+- Делайте промпты подробными и конкретными для лучшей генерации изображений
+- Пример: <!-- IMAGE_PLACEHOLDER:Профессиональная бизнес-встреча с разнообразными членами команды, обсуждающими графики и диаграммы на большом экране:Совещание по командному сотрудничеству -->
+
+ДОСТУПНЫЕ CSS КЛАССЫ ИЗ ШАБЛОНА:
+- .slide (базовый класс слайда)
+- .first-slide (для первого/титульного слайда)
+- .last-slide (для последнего/заключительного слайда)
+- .slide-title (для основных заголовков слайдов)
+- .slide-subtitle (для подзаголовков)
+- .content-block (для контейнера контента)
+- .content-title (для заголовков секций контента)
+- .points-list (для ненумерованных списков)
+- .diagram (для контейнеров диаграмм)
+- .diagram-title (для заголовков диаграмм)
+- .diagram-content (для содержимого диаграмм)
+- .circle, .rectangle, .line (для элементов диаграмм)
+- .image-placeholder (для placeholders изображений)
+- .slide-number (для индикатора номера слайда)
+- .thank-you (для сообщения благодарности)
+
+Генерируйте ТОЛЬКО секции слайдов на основе СОДЕРЖАНИЯ СЛАЙДОВ. Не включайте <!DOCTYPE html>, <html>, <head>, <style> или <body> теги. Не включайте никаких объяснений или markdown форматирования.`,
   },
 };
 

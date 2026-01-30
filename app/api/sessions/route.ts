@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { sessionStore } from "@/app/lib/session/supabaseStore";
+import { sessionStore } from "@/app/lib/services/supabaseStore";
 import {
   CreateSessionRequest,
   UpdateSessionRequest,

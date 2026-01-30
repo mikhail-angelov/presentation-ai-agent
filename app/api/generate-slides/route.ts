@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { SESSION_COOKIE_NAME } from "@/app/types/session";
 import { extractImagePlaceholders, runAgentForSlides } from "@/app/lib/agent/deepseekAgentForSlides";
-import { sessionStore, generateUUID } from "@/app/lib/session/supabaseStore";
+import { sessionStore, generateUUID } from "@/app/lib/services/supabaseStore";
 
 // Generate HTML/CSS slides using LLM with streaming
 async function* generateSlidesHTMLStream(

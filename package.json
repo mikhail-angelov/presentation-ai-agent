@@ -20,6 +20,7 @@
     "lucide-react": "^0.562.0",
     "next": "16.1.1",
     "node-jose": "^2.2.0",
+    "nodemailer": "^7.0.13",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "zod": "^4.3.5"
@@ -31,6 +32,7 @@
     "@testing-library/user-event": "^14.0.0",
     "@types/node": "^20",
     "@types/node-jose": "^1.1.13",
+    "@types/nodemailer": "^7.0.9",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@vitest/ui": "^2.0.0",
