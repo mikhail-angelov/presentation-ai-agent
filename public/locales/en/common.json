@@ -192,7 +192,11 @@
     "title": "AI is generating your presentation...",
     "startingMessage": "Starting AI generation...",
     "waitMessage": "Please wait while our AI creates a comprehensive presentation plan for you.",
-    "cancelButton": "Cancel Generation"
+    "cancelButton": "Cancel Generation",
+    "imageGenerationTitle": "Generating Images",
+    "generatingImage": "Generating image",
+    "of": "of",
+    "currentPrompt": "Prompt"
   },
   "slidesPreviewModal": {
     "title": "Presentation Slides Preview",

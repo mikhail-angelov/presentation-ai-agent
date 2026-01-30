@@ -2,7 +2,6 @@ import "dotenv/config";
 import { ChatDeepSeek } from "@langchain/deepseek";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { getSystemPrompt } from "./prompts";
-import { generateImage } from "./yandexML";
 
 const config = {
   deepseekApiKey: process.env.DEEPSEEK_API_KEY || "",

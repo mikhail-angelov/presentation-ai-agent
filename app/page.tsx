@@ -7,7 +7,8 @@ import OutlineStep from "./components/presentation/OutlineStep";
 import SpeechStep from "./components/presentation/SpeechStep";
 import SlidesStep from "./components/presentation/SlidesStep";
 import HtmlSlidesStep from "./components/presentation/HtmlSlidesStep";
-import StreamingDisplay from "./components/presentation/StreamingDisplay";
+import RequestStreamingDisplay from "./components/presentation/RequestStreamingDisplay";
+import ImageGenerationProgressDisplay from "./components/presentation/ImageGenerationProgressDisplay";
 import PreparationSteps from "./components/presentation/PreparationSteps";
 import Footer from "./components/shared/Footer";
 import { useSession } from "./hooks/useSession";
@@ -80,7 +81,7 @@ export default function Home() {
       stepContents,
       timestamp: new Date().toISOString(),
       version: "1.0",
-      appName: "Prez AI",
+      appName: "Presentation AI",
     };
 
     const jsonString = JSON.stringify(saveData, null, 2);
@@ -91,7 +92,7 @@ export default function Home() {
     // Create filename with timestamp
     const timestamp = new Date().toISOString().split("T")[0];
     const topic = stepContents.setup.topic || "presentation";
-    const filename = `prez-ai-${topic.replace(/\s+/g, "-").toLowerCase()}-${timestamp}.json`;
+    const filename = `presentation-ai-${topic.replace(/\s+/g, "-").toLowerCase()}-${timestamp}.json`;
 
     element.download = filename;
     document.body.appendChild(element);
@@ -307,12 +308,19 @@ export default function Home() {
           <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8 min-h-0">
             {/* Left Column - Current Step Content */}
             <div className="lg:col-span-2 space-y-6 md:space-y-8 overflow-y-auto">
-              <StreamingDisplay
-                isGenerating={isGenerating}
-                streamingContent={streamingContent}
-                onCancel={handleCancelGeneration}
-                imageGenerationProgress={imageGenerationProgress}
-              />
+              {/* Show image generation progress if it's active */}
+              {imageGenerationProgress?.isGenerating ? (
+                <ImageGenerationProgressDisplay
+                  imageGenerationProgress={imageGenerationProgress}
+                  onCancel={handleCancelGeneration}
+                />
+              ) : isGenerating ? (
+                <RequestStreamingDisplay
+                  isGenerating={isGenerating}
+                  streamingContent={streamingContent}
+                  onCancel={handleCancelGeneration}
+                />
+              ) : null}
               {renderStepContent()}
             </div>
 
