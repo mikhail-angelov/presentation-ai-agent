@@ -11,7 +11,6 @@ import RequestStreamingDisplay from "./components/presentation/RequestStreamingD
 import ImageGenerationProgressDisplay from "./components/presentation/ImageGenerationProgressDisplay";
 import PreparationSteps from "./components/presentation/PreparationSteps";
 import Footer from "./components/shared/Footer";
-import { useSession } from "./hooks/useSession";
 import { useTranslation } from "./hooks/useTranslation";
 import { StepType } from "./types/steps";
 import { useToast } from "./contexts/ToastContext";
@@ -22,7 +21,6 @@ import { useStore } from "./lib/flux/store";
 import { dispatcher, dispatcherHelpers } from "./lib/flux/dispatcher";
 
 export default function Home() {
-  const { session, trackAction } = useSession();
   const { isLoading, t } = useTranslation();
   const { addToast } = useToast();
 
@@ -39,6 +37,10 @@ export default function Home() {
     imageGenerationProgress,
     presentationActions,
     presentationOptions,
+    session,
+    sessionLoading,
+    sessionError,
+    trackAction,
   } = useStore();
 
   // Modal states
@@ -355,6 +357,7 @@ export default function Home() {
             onUpdateHtmlSlides={(content) =>
               updateStepContent("htmlSlides", content)
             }
+            sessionId={session?.id}
           />
         );
 
@@ -363,7 +366,7 @@ export default function Home() {
     }
   };
 
-  if (isLoading) {
+  if (isLoading || sessionLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-blue-50">
         <span className="text-lg text-blue-700 font-semibold">Loading…</span>
@@ -380,6 +383,7 @@ export default function Home() {
             onSave={handleSavePresentation}
             onLoad={handleLoadPresentation}
             onClear={handleClearPresentation}
+            sessionId={session?.id}
           />
 
           <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8 min-h-0">

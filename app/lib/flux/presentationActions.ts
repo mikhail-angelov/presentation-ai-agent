@@ -15,6 +15,203 @@ export interface PresentationServiceOptions {
   sessionActionsLength?: number;
 }
 
+// Common interface for generate content request
+interface GenerateContentRequest {
+  topic: string;
+  audience: string;
+  duration: string;
+  keyPoints: string[];
+  stepType: "outline" | "speech" | "slides";
+  previousContent?: string;
+  language: string;
+}
+
+// Common interface for generate content response
+interface GenerateContentResponse {
+  chunk?: string;
+  content?: string;
+  done?: boolean;
+  tokensUsed?: number;
+  duration?: number;
+  error?: string;
+  sessionId?: string;
+  newSessionCreated?: boolean;
+}
+
+// Common function for generating content via /api/generate-content
+async function generateContent(
+  request: GenerateContentRequest,
+  options: PresentationServiceOptions,
+  step: "outline" | "speech" | "slides",
+  successAction: string,
+  errorAction: string,
+  additionalData?: Record<string, any>
+): Promise<void> {
+  const { topic, audience, duration, keyPoints, stepType, previousContent, language } = request;
+  const { trackAction, addToast, t, sessionActionsLength } = options;
+  
+  if (step === "outline" && !topic.trim()) {
+    addToast(t("toasts.enterTopicFirst"), "warning");
+    return;
+  }
+
+  if (step === "outline") {
+    trackAction("start_presentation", {
+      topic,
+      audience,
+      duration,
+      keyPoints: keyPoints.filter((kp) => kp.trim() !== ""),
+    });
+  }
+
+  const startTime = Date.now();
+  const requestId = Math.random().toString(36).substr(2, 9);
+
+  // Create abort controller and set it in state
+  const abortController = new AbortController();
+  
+  // Set initial states
+  dispatcher.setIsGenerating(true);
+  dispatcher.setStreamingContent("");
+  dispatcher.setAbortController(abortController);
+
+  try {
+    const response = await fetch("/api/generate-content", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      credentials: "include",
+      signal: abortController.signal,
+      body: JSON.stringify({
+        topic,
+        audience,
+        duration,
+        keyPoints: keyPoints.filter((kp) => kp.trim() !== ""),
+        stepType,
+        previousContent,
+        language,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    if (!response.body) {
+      throw new Error("No response body");
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let fullContent = "";
+    let buffer = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      const chunk = decoder.decode(value);
+      buffer += chunk;
+      
+      // Process complete lines
+      const lines = buffer.split("\n");
+      // Keep the last incomplete line in buffer
+      buffer = lines.pop() || "";
+      
+      for (const line of lines) {
+        if (line.startsWith("data: ")) {
+          try {
+            const data: GenerateContentResponse = JSON.parse(line.slice(6));
+
+            if (data.chunk) {
+              fullContent += data.chunk;
+              dispatcher.setStreamingContent(fullContent);
+            }
+
+            if (data.done) {
+              const durationMs = Date.now() - startTime;
+              dispatcherHelpers.updateStepContentWithHtmlSync(step, data.content || fullContent);
+              
+              const newRequest = {
+                id: requestId,
+                timestamp: new Date(),
+                endpoint: "/api/generate-content",
+                status: "success" as const,
+                tokensUsed: data.tokensUsed || Math.floor(fullContent.length / 4),
+                duration: data.duration || durationMs,
+              };
+              dispatcherHelpers.addLLMRequestWithRateLimit(newRequest, sessionActionsLength);
+              
+              const trackData = {
+                topic,
+                ...additionalData,
+              };
+              
+              const resultData = {
+                contentLength: fullContent.length,
+                tokensUsed: data.tokensUsed || Math.floor(fullContent.length / 4),
+                ...(data.sessionId && { sessionId: data.sessionId }),
+                ...(data.newSessionCreated && { newSessionCreated: data.newSessionCreated }),
+              };
+              
+              trackAction(
+                successAction,
+                trackData,
+                resultData,
+                data.tokensUsed || Math.floor(fullContent.length / 4),
+                data.duration || durationMs,
+              );
+              
+              setTimeout(() => {
+                dispatcherHelpers.navigateToStep(step);
+              }, 500);
+            }
+
+            if (data.error) {
+              throw new Error(data.error);
+            }
+          } catch (e) {
+            console.error("Error parsing SSE data:", e);
+            // Don't throw here, just log and continue
+            // The error might be due to incomplete JSON that will be completed in next chunk
+          }
+        }
+      }
+    }
+  } catch (error) {
+    const durationMs = Date.now() - startTime;
+    console.error(`Error generating ${step}:`, error);
+    
+    trackAction(
+      errorAction,
+      {
+        topic,
+        ...additionalData,
+      },
+      {
+        error: error instanceof Error ? error.message : "Unknown error",
+      },
+      undefined,
+      durationMs,
+    );
+    
+    const errorRequest = {
+      id: requestId,
+      timestamp: new Date(),
+      endpoint: "/api/generate-content",
+      status: "error" as const,
+      tokensUsed: 0,
+      duration: durationMs,
+    };
+    dispatcherHelpers.addLLMRequestWithRateLimit(errorRequest, sessionActionsLength);
+    addToast(t("toasts.aiServiceFailed"), "error");
+    throw error;
+  } finally {
+    dispatcher.setIsGenerating(false);
+  }
+}
+
 // Action creators for presentation service
 export const presentationActions = {
   // Generate Outline
@@ -23,161 +220,28 @@ export const presentationActions = {
     options: PresentationServiceOptions
   ): Promise<void> {
     const { topic, audience, duration, keyPoints } = setup;
-    const { trackAction, addToast, t, currentLanguage, sessionActionsLength } = options;
+    const { currentLanguage } = options;
     
-    if (!topic.trim()) {
-      addToast(t("toasts.enterTopicFirst"), "warning");
-      return;
-    }
-
-    trackAction("start_presentation", {
+    const request: GenerateContentRequest = {
       topic,
       audience,
       duration,
       keyPoints: keyPoints.filter((kp) => kp.trim() !== ""),
-    });
-
-    const startTime = Date.now();
-    const requestId = Math.random().toString(36).substr(2, 9);
-
-    // Create abort controller and set it in state
-    const abortController = new AbortController();
+      stepType: "outline",
+      language: currentLanguage,
+    };
     
-    // Set initial states
-    dispatcher.setIsGenerating(true);
-    dispatcher.setStreamingContent("");
-    dispatcher.setAbortController(abortController);
-
-    try {
-      const response = await fetch("/api/generate-content", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
-        signal: abortController.signal,
-        body: JSON.stringify({
-          topic,
-          audience,
-          duration,
-          keyPoints: keyPoints.filter((kp) => kp.trim() !== ""),
-          stepType: "outline",
-          language: currentLanguage,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+    await generateContent(
+      request,
+      options,
+      "outline",
+      "generate_presentation_success",
+      "generate_presentation_network_error",
+      {
+        audience,
+        duration,
       }
-
-      if (!response.body) {
-        throw new Error("No response body");
-      }
-
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let fullContent = "";
-      let buffer = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        const chunk = decoder.decode(value);
-        buffer += chunk;
-        
-        // Process complete lines
-        const lines = buffer.split("\n");
-        // Keep the last incomplete line in buffer
-        buffer = lines.pop() || "";
-        
-        for (const line of lines) {
-          if (line.startsWith("data: ")) {
-            try {
-              const data = JSON.parse(line.slice(6));
-
-              if (data.chunk) {
-                fullContent += data.chunk;
-                dispatcher.setStreamingContent(fullContent);
-              }
-
-              if (data.done) {
-                const durationMs = Date.now() - startTime;
-                dispatcherHelpers.updateStepContentWithHtmlSync("outline", data.content || fullContent);
-                
-                const newRequest = {
-                  id: requestId,
-                  timestamp: new Date(),
-                  endpoint: "/api/generate-content",
-                  status: "success" as const,
-                  tokensUsed: data.tokensUsed || Math.floor(fullContent.length / 4),
-                  duration: data.duration || durationMs,
-                };
-                dispatcherHelpers.addLLMRequestWithRateLimit(newRequest, sessionActionsLength);
-                
-                trackAction(
-                  "generate_presentation_success",
-                  {
-                    topic,
-                    audience,
-                    duration,
-                  },
-                  {
-                    contentLength: fullContent.length,
-                    tokensUsed: data.tokensUsed || Math.floor(fullContent.length / 4),
-                    sessionId: data.sessionId,
-                    newSessionCreated: data.newSessionCreated,
-                  },
-                  data.tokensUsed || Math.floor(fullContent.length / 4),
-                  data.duration || durationMs,
-                );
-                
-                setTimeout(() => {
-                  dispatcherHelpers.navigateToStep("outline");
-                }, 500);
-              }
-
-              if (data.error) {
-                throw new Error(data.error);
-              }
-            } catch (e) {
-              console.error("Error parsing SSE data:", e);
-              // Don't throw here, just log and continue
-              // The error might be due to incomplete JSON that will be completed in next chunk
-            }
-          }
-        }
-      }
-    } catch (error) {
-      const durationMs = Date.now() - startTime;
-      console.error("Error generating content:", error);
-      
-      trackAction(
-        "generate_presentation_network_error",
-        {
-          topic,
-        },
-        {
-          error: error instanceof Error ? error.message : "Unknown error",
-        },
-        undefined,
-        durationMs,
-      );
-      
-      const errorRequest = {
-        id: requestId,
-        timestamp: new Date(),
-        endpoint: "/api/generate-content",
-        status: "error" as const,
-        tokensUsed: 0,
-        duration: durationMs,
-      };
-      dispatcherHelpers.addLLMRequestWithRateLimit(errorRequest, sessionActionsLength);
-      addToast(t("toasts.aiServiceFailed"), "error");
-      throw error;
-    } finally {
-      dispatcher.setIsGenerating(false);
-    }
+    );
   },
 
   // Generate Speech from Outline
@@ -187,150 +251,32 @@ export const presentationActions = {
     options: PresentationServiceOptions
   ): Promise<void> {
     const { topic, audience, duration } = setup;
-    const { trackAction, addToast, t, currentLanguage, sessionActionsLength } = options;
-    const startTime = Date.now();
-    const requestId = Math.random().toString(36).substr(2, 9);
-
-    // Create abort controller and set it in state
-    const abortController = new AbortController();
+    const { currentLanguage } = options;
     
-    // Set initial states
-    dispatcher.setIsGenerating(true);
-    dispatcher.setStreamingContent("");
-    dispatcher.setAbortController(abortController);
-
-    try {
-      const response = await fetch("/api/generate-content", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
-        signal: abortController.signal,
-        body: JSON.stringify({
-          topic,
-          audience,
-          duration,
-          keyPoints: [
-            "Convert outline to spoken speech",
-            "Natural speaking style",
-            "Engaging delivery",
-          ],
-          stepType: "speech",
-          previousContent: outline,
-          language: currentLanguage,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+    const request: GenerateContentRequest = {
+      topic,
+      audience,
+      duration,
+      keyPoints: [
+        "Convert outline to spoken speech",
+        "Natural speaking style",
+        "Engaging delivery",
+      ],
+      stepType: "speech",
+      previousContent: outline,
+      language: currentLanguage,
+    };
+    
+    await generateContent(
+      request,
+      options,
+      "speech",
+      "generate_speech_success",
+      "generate_speech_network_error",
+      {
+        outlineLength: outline.length,
       }
-
-      if (!response.body) {
-        throw new Error("No response body");
-      }
-
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let fullContent = "";
-      let buffer = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        const chunk = decoder.decode(value);
-        buffer += chunk;
-        
-        // Process complete lines
-        const lines = buffer.split("\n");
-        // Keep the last incomplete line in buffer
-        buffer = lines.pop() || "";
-        
-        for (const line of lines) {
-          if (line.startsWith("data: ")) {
-            try {
-              const data = JSON.parse(line.slice(6));
-
-              if (data.chunk) {
-                fullContent += data.chunk;
-                dispatcher.setStreamingContent(fullContent);
-              }
-
-              if (data.done) {
-                const durationMs = Date.now() - startTime;
-                dispatcherHelpers.updateStepContentWithHtmlSync("speech", data.content || fullContent);
-                
-                const newRequest = {
-                  id: requestId,
-                  timestamp: new Date(),
-                  endpoint: "/api/generate-content",
-                  status: "success" as const,
-                  tokensUsed: data.tokensUsed || Math.floor(fullContent.length / 4),
-                  duration: data.duration || durationMs,
-                };
-                dispatcherHelpers.addLLMRequestWithRateLimit(newRequest, sessionActionsLength);
-                
-                trackAction(
-                  "generate_speech_success",
-                  {
-                    topic,
-                    outlineLength: outline.length,
-                  },
-                  {
-                    contentLength: fullContent.length,
-                    tokensUsed: data.tokensUsed || Math.floor(fullContent.length / 4),
-                  },
-                  data.tokensUsed || Math.floor(fullContent.length / 4),
-                  data.duration || durationMs,
-                );
-                
-                setTimeout(() => {
-                  dispatcherHelpers.navigateToStep("speech");
-                }, 500);
-              }
-
-              if (data.error) {
-                throw new Error(data.error);
-              }
-            } catch (e) {
-              console.error("Error parsing SSE data:", e);
-              // Don't throw here, just log and continue
-              // The error might be due to incomplete JSON that will be completed in next chunk
-            }
-          }
-        }
-      }
-    } catch (error) {
-      const durationMs = Date.now() - startTime;
-      console.error("Error generating speech:", error);
-      
-      trackAction(
-        "generate_speech_network_error",
-        {
-          topic,
-        },
-        {
-          error: error instanceof Error ? error.message : "Unknown error",
-        },
-        undefined,
-        durationMs,
-      );
-      
-      const errorRequest = {
-        id: requestId,
-        timestamp: new Date(),
-        endpoint: "/api/generate-content",
-        status: "error" as const,
-        tokensUsed: 0,
-        duration: durationMs,
-      };
-      dispatcherHelpers.addLLMRequestWithRateLimit(errorRequest, sessionActionsLength);
-      addToast(t("toasts.aiServiceFailed"), "error");
-      throw error;
-    } finally {
-      dispatcher.setIsGenerating(false);
-    }
+    );
   },
 
   // Generate Slides from Speech
@@ -340,150 +286,32 @@ export const presentationActions = {
     options: PresentationServiceOptions
   ): Promise<void> {
     const { topic, audience, duration } = setup;
-    const { trackAction, addToast, t, currentLanguage, sessionActionsLength } = options;
-    const startTime = Date.now();
-    const requestId = Math.random().toString(36).substr(2, 9);
-
-    // Create abort controller and set it in state
-    const abortController = new AbortController();
+    const { currentLanguage } = options;
     
-    // Set initial states
-    dispatcher.setIsGenerating(true);
-    dispatcher.setStreamingContent("");
-    dispatcher.setAbortController(abortController);
-
-    try {
-      const response = await fetch("/api/generate-content", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
-        signal: abortController.signal,
-        body: JSON.stringify({
-          topic,
-          audience,
-          duration,
-          keyPoints: [
-            "Create slide content",
-            "Visual suggestions",
-            "Slide structure",
-          ],
-          stepType: "slides",
-          previousContent: speech,
-          language: currentLanguage,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+    const request: GenerateContentRequest = {
+      topic,
+      audience,
+      duration,
+      keyPoints: [
+        "Create slide content",
+        "Visual suggestions",
+        "Slide structure",
+      ],
+      stepType: "slides",
+      previousContent: speech,
+      language: currentLanguage,
+    };
+    
+    await generateContent(
+      request,
+      options,
+      "slides",
+      "generate_slides_success",
+      "generate_slides_network_error",
+      {
+        speechLength: speech.length,
       }
-
-      if (!response.body) {
-        throw new Error("No response body");
-      }
-
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let fullContent = "";
-      let buffer = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        const chunk = decoder.decode(value);
-        buffer += chunk;
-        
-        // Process complete lines
-        const lines = buffer.split("\n");
-        // Keep the last incomplete line in buffer
-        buffer = lines.pop() || "";
-        
-        for (const line of lines) {
-          if (line.startsWith("data: ")) {
-            try {
-              const data = JSON.parse(line.slice(6));
-
-              if (data.chunk) {
-                fullContent += data.chunk;
-                dispatcher.setStreamingContent(fullContent);
-              }
-
-              if (data.done) {
-                const durationMs = Date.now() - startTime;
-                dispatcherHelpers.updateStepContentWithHtmlSync("slides", data.content || fullContent);
-                
-                const newRequest = {
-                  id: requestId,
-                  timestamp: new Date(),
-                  endpoint: "/api/generate-content",
-                  status: "success" as const,
-                  tokensUsed: data.tokensUsed || Math.floor(fullContent.length / 4),
-                  duration: data.duration || durationMs,
-                };
-                dispatcherHelpers.addLLMRequestWithRateLimit(newRequest, sessionActionsLength);
-                
-                trackAction(
-                  "generate_slides_success",
-                  {
-                    topic,
-                    speechLength: speech.length,
-                  },
-                  {
-                    contentLength: fullContent.length,
-                    tokensUsed: data.tokensUsed || Math.floor(fullContent.length / 4),
-                  },
-                  data.tokensUsed || Math.floor(fullContent.length / 4),
-                  data.duration || durationMs,
-                );
-                
-                setTimeout(() => {
-                  dispatcherHelpers.navigateToStep("slides");
-                }, 500);
-              }
-
-              if (data.error) {
-                throw new Error(data.error);
-              }
-            } catch (e) {
-              console.error("Error parsing SSE data:", e);
-              // Don't throw here, just log and continue
-              // The error might be due to incomplete JSON that will be completed in next chunk
-            }
-          }
-        }
-      }
-    } catch (error) {
-      const durationMs = Date.now() - startTime;
-      console.error("Error generating slides:", error);
-      
-      trackAction(
-        "generate_slides_network_error",
-        {
-          topic,
-        },
-        {
-          error: error instanceof Error ? error.message : "Unknown error",
-        },
-        undefined,
-        durationMs,
-      );
-      
-      const errorRequest = {
-        id: requestId,
-        timestamp: new Date(),
-        endpoint: "/api/generate-content",
-        status: "error" as const,
-        tokensUsed: 0,
-        duration: durationMs,
-      };
-      dispatcherHelpers.addLLMRequestWithRateLimit(errorRequest, sessionActionsLength);
-      addToast(t("toasts.aiServiceFailed"), "error");
-      throw error;
-    } finally {
-      dispatcher.setIsGenerating(false);
-    }
+    );
   },
 
   // Complete Presentation - Generate HTML Slides

@@ -2,7 +2,6 @@
 
 import { Presentation, Zap, Menu, Save, FolderOpen, Sparkles, Trash2 } from "lucide-react";
 import { useTranslation } from "@/app/hooks/useTranslation";
-import { useSession } from "@/app/hooks/useSession";
 import LanguageSwitcher from "./LanguageSwitcher";
 import { useToast } from "@/app/contexts/ToastContext";
 import { useState, useRef, useEffect } from "react";
@@ -12,12 +11,12 @@ interface HeaderProps {
   onSave: () => void;
   onLoad: (data: any) => void;
   onClear: () => void;
+  sessionId?: string | null;
 }
 
-export default function Header({ onFeedback, onSave, onLoad, onClear }: HeaderProps) {
+export default function Header({ onFeedback, onSave, onLoad, onClear, sessionId }: HeaderProps) {
   const { t } = useTranslation();
   const { addToast } = useToast();
-  const { session } = useSession();
   const [menuOpen, setMenuOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -91,7 +90,7 @@ export default function Header({ onFeedback, onSave, onLoad, onClear }: HeaderPr
       // Include session ID if available
       const feedbackWithSession = {
         ...feedback,
-        session_id: session?.id || null,
+        session_id: sessionId || null,
       };
 
       // Send feedback to API

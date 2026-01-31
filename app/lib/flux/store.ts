@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { useSession } from "@/app/hooks/useSession";
 import { useTranslation } from "@/app/hooks/useTranslation";
 import { useToast } from "@/app/contexts/ToastContext";
 import {
@@ -14,6 +13,30 @@ import {
 
 import { StepContent, StepType } from "@/app/types/steps";
 import { LLMRequest, RateLimit } from "@/app/types";
+
+// Session types moved from useSession.ts
+export type SessionData = {
+  id: string;
+  userId?: string;
+  createdAt: string;
+  lastAccessed: string;
+  actions: Array<{
+    id: string;
+    type: string;
+    timestamp: string;
+    endpoint?: string;
+    tokensUsed?: number;
+    duration?: number;
+  }>;
+  metadata: Record<string, any>;
+  tokensUsed: number;
+  mlRequestCount: number;
+};
+
+export type SessionStats = {
+  totalActions: number;
+  recentActions: Array<any>;
+};
 
 export interface AppState {
   // Step management
@@ -39,6 +62,11 @@ export interface AppState {
     total: number;
     currentPrompt: string;
   };
+
+  // Session state
+  session: SessionData | null;
+  sessionLoading: boolean;
+  sessionError: string | null;
 }
 
 // Initial state
@@ -74,6 +102,10 @@ const initialState: AppState = {
     total: 0,
     currentPrompt: "",
   },
+  // Session state
+  session: null,
+  sessionLoading: true,
+  sessionError: null,
 };
 
 // Action types
@@ -90,6 +122,11 @@ export enum ActionType {
   SET_IMAGE_GENERATION_PROGRESS = "SET_IMAGE_GENERATION_PROGRESS",
   RESET_STATE = "RESET_STATE",
   LOAD_PRESENTATION = "LOAD_PRESENTATION",
+  // Session actions
+  SET_SESSION = "SET_SESSION",
+  SET_SESSION_LOADING = "SET_SESSION_LOADING",
+  SET_SESSION_ERROR = "SET_SESSION_ERROR",
+  UPDATE_SESSION = "UPDATE_SESSION",
 }
 
 // Action interfaces
@@ -163,6 +200,27 @@ interface LoadPresentationAction {
   };
 }
 
+// Session action interfaces
+interface SetSessionAction {
+  type: ActionType.SET_SESSION;
+  payload: SessionData | null;
+}
+
+interface SetSessionLoadingAction {
+  type: ActionType.SET_SESSION_LOADING;
+  payload: boolean;
+}
+
+interface SetSessionErrorAction {
+  type: ActionType.SET_SESSION_ERROR;
+  payload: string | null;
+}
+
+interface UpdateSessionAction {
+  type: ActionType.UPDATE_SESSION;
+  payload: SessionData;
+}
+
 export type Action =
   | SetActiveStepAction
   | UpdateStepContentAction
@@ -175,7 +233,11 @@ export type Action =
   | SetGeneratedSlidesHTMLAction
   | SetImageGenerationProgressAction
   | ResetStateAction
-  | LoadPresentationAction;
+  | LoadPresentationAction
+  | SetSessionAction
+  | SetSessionLoadingAction
+  | SetSessionErrorAction
+  | UpdateSessionAction;
 
 // Action creators
 export const actionCreators = {
@@ -372,6 +434,34 @@ function reducer(state: AppState = initialState, action: Action): AppState {
         stepHistory: newStepHistory,
       };
 
+    // Session actions
+    case ActionType.SET_SESSION:
+      return {
+        ...state,
+        session: action.payload,
+        sessionLoading: false,
+        sessionError: null,
+      };
+
+    case ActionType.SET_SESSION_LOADING:
+      return {
+        ...state,
+        sessionLoading: action.payload,
+      };
+
+    case ActionType.SET_SESSION_ERROR:
+      return {
+        ...state,
+        sessionError: action.payload,
+        sessionLoading: false,
+      };
+
+    case ActionType.UPDATE_SESSION:
+      return {
+        ...state,
+        session: action.payload,
+      };
+
     default:
       return state;
   }
@@ -495,11 +585,156 @@ export const store = new Store(initialState, reducer);
 export function useStore(): AppState & {
   presentationActions: typeof presentationActions;
   presentationOptions: PresentationServiceOptions;
+  trackAction: (
+    type: string,
+    data?: Record<string, any>,
+    result?: Record<string, any>,
+    tokensUsed?: number,
+    duration?: number
+  ) => Promise<void>;
 } {
   const [state, setState] = useState(store.getState());
-  const { session, trackAction } = useSession();
   const { t, currentLanguage } = useTranslation();
   const { addToast } = useToast();
+
+  // Initialize or get existing session
+  const initializeSession = async () => {
+    try {
+      store.dispatch({
+        type: ActionType.SET_SESSION_LOADING,
+        payload: true,
+      });
+
+      const response = await fetch('/api/sessions', {
+        method: 'GET',
+        credentials: 'include',
+      });
+
+      if (response.status === 404) {
+        // No session exists, create a new one
+        const createResponse = await fetch('/api/sessions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          credentials: 'include',
+          body: JSON.stringify({
+            metadata: {
+              initializedAt: new Date().toISOString(),
+              userAgent: navigator.userAgent,
+            },
+          }),
+        });
+
+        if (!createResponse.ok) {
+          throw new Error('Failed to create session');
+        }
+
+        const data = await createResponse.json();
+        store.dispatch({
+          type: ActionType.SET_SESSION,
+          payload: data.session,
+        });
+      } else if (response.ok) {
+        const data = await response.json();
+        store.dispatch({
+          type: ActionType.SET_SESSION,
+          payload: data.session,
+        });
+      } else {
+        throw new Error('Failed to get session');
+      }
+    } catch (err) {
+      store.dispatch({
+        type: ActionType.SET_SESSION_ERROR,
+        payload: err instanceof Error ? err.message : 'Unknown error',
+      });
+      console.error('Session initialization error:', err);
+    }
+  };
+
+  // Track user action
+  const trackAction = async (
+    type: string,
+    data?: Record<string, any>,
+    result?: Record<string, any>,
+    tokensUsed?: number,
+    duration?: number
+  ) => {
+    if (!state.session) return;
+    
+    try {
+      const action = {
+        type,
+        timestamp: new Date().toISOString(),
+        data,
+        result,
+        tokensUsed,
+        duration,
+      };
+
+      const response = await fetch('/api/sessions', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({ action }),
+      });
+
+      if (response.ok) {
+        const updated = await response.json();
+        store.dispatch({
+          type: ActionType.UPDATE_SESSION,
+          payload: updated.session,
+        });
+      }
+    } catch (err) {
+      console.error('Failed to track action:', err);
+    }
+  };
+
+  // Update session metadata
+  const updateMetadata = async (metadata: Record<string, any>) => {
+    if (!state.session) return;
+
+    try {
+      const response = await fetch('/api/sessions', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({ metadata }),
+      });
+
+      if (response.ok) {
+        const updated = await response.json();
+        store.dispatch({
+          type: ActionType.UPDATE_SESSION,
+          payload: updated.session,
+        });
+      }
+    } catch (err) {
+      console.error('Failed to update metadata:', err);
+    }
+  };
+
+  // Clear session (logout)
+  const clearSession = async () => {
+    try {
+      await fetch('/api/sessions', {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      store.dispatch({
+        type: ActionType.SET_SESSION,
+        payload: null,
+      });
+    } catch (err) {
+      console.error('Failed to clear session:', err);
+    }
+  };
 
   useEffect(() => {
     const unsubscribe = store.subscribe(() => {
@@ -508,6 +743,9 @@ export function useStore(): AppState & {
 
     // Load saved step contents on initialization
     store.loadSavedStepContents();
+
+    // Initialize session on mount
+    initializeSession();
 
     return unsubscribe;
   }, []);
@@ -518,12 +756,13 @@ export function useStore(): AppState & {
     addToast,
     t,
     currentLanguage,
-    sessionActionsLength: session?.actions?.length,
+    sessionActionsLength: state.session?.actions?.length,
   };
 
   return {
     ...state,
     presentationActions,
     presentationOptions,
+    trackAction,
   };
 }

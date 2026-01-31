@@ -4,7 +4,6 @@ import { useState } from "react";
 import { FileText, Eye, Download, Copy, ChevronLeft, Share2, Check } from "lucide-react";
 import { StepContent } from "@/app/types/steps";
 import { useTranslation } from "@/app/hooks/useTranslation";
-import { useSession } from "@/app/hooks/useSession";
 
 interface HtmlSlidesStepProps {
   htmlSlides: string;
@@ -14,6 +13,7 @@ interface HtmlSlidesStepProps {
   onCopyContent: (content: string) => void;
   onDownloadContent: (content: string, filename: string) => void;
   onUpdateHtmlSlides?: (content: string) => void;
+  sessionId?: string | null;
 }
 
 export default function HtmlSlidesStep({
@@ -24,9 +24,9 @@ export default function HtmlSlidesStep({
   onCopyContent,
   onDownloadContent,
   onUpdateHtmlSlides,
+  sessionId,
 }: HtmlSlidesStepProps) {
   const { t } = useTranslation();
-  const { session } = useSession();
   const [isSharing, setIsSharing] = useState(false);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [shareError, setShareError] = useState<string | null>(null);
@@ -42,7 +42,7 @@ export default function HtmlSlidesStep({
   };
 
   const handleSharePresentation = async () => {
-    if (!session?.id) {
+    if (!sessionId) {
       setShareError(t("htmlSlidesStep.share.noSessionError"));
       return;
     }
@@ -62,7 +62,7 @@ export default function HtmlSlidesStep({
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          sessionId: session.id,
+          sessionId: sessionId,
           htmlContent: htmlSlides,
         }),
       });
@@ -171,7 +171,7 @@ export default function HtmlSlidesStep({
               <div className="flex items-center gap-2">
                 <button
                   onClick={handleSharePresentation}
-                  disabled={isSharing || !session?.id}
+                  disabled={isSharing || !sessionId}
                   className="flex items-center gap-2 px-3 py-1.5 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isSharing ? (

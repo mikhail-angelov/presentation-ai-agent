@@ -2,7 +2,7 @@
 
 import { BarChart3, Activity, Database, Github } from "lucide-react";
 import { RateLimit } from "@/app/types";
-import { SessionData } from "@/app/hooks/useSession";
+import { SessionData } from "@/app/lib/flux/store";
 
 interface FooterProps {
   rateLimit: RateLimit;
