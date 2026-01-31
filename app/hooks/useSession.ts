@@ -16,6 +16,8 @@ export type SessionData = {
     duration?: number;
   }>;
   metadata: Record<string, any>;
+  tokensUsed: number;
+  mlRequestCount: number;
 };
 
 export type SessionStats = {

@@ -2,30 +2,36 @@ import { useEffect, useState } from "react";
 import { useSession } from "@/app/hooks/useSession";
 import { useTranslation } from "@/app/hooks/useTranslation";
 import { useToast } from "@/app/contexts/ToastContext";
-import { presentationActions, PresentationServiceOptions } from "./presentationActions";
-import { IndexedDBService, indexedDBService, StepContentsAutoSaver } from "@/app/lib/services/indexedDBService";
+import {
+  presentationActions,
+  PresentationServiceOptions,
+} from "./presentationActions";
+import {
+  IndexedDBService,
+  indexedDBService,
+  StepContentsAutoSaver,
+} from "@/app/lib/services/indexedDBService";
 
 import { StepContent, StepType } from "@/app/types/steps";
 import { LLMRequest, RateLimit } from "@/app/types";
-
 
 export interface AppState {
   // Step management
   activeStep: StepType;
   stepHistory: StepType[];
   stepContents: StepContent;
-  
+
   // UI states
   llmRequests: LLMRequest[];
   rateLimit: RateLimit;
   isGenerating: boolean;
   streamingContent: string;
   abortController: AbortController | null;
-  
+
   // Modal state for slides preview
   showSlidesModal: boolean;
   generatedSlidesHTML: string;
-  
+
   // Image generation progress state
   imageGenerationProgress: {
     isGenerating: boolean;
@@ -178,7 +184,10 @@ export const actionCreators = {
     payload: step,
   }),
 
-  updateStepContent: (step: StepType, content: any): UpdateStepContentAction => ({
+  updateStepContent: (
+    step: StepType,
+    content: any,
+  ): UpdateStepContentAction => ({
     type: ActionType.UPDATE_STEP_CONTENT,
     payload: { step, content },
   }),
@@ -203,7 +212,9 @@ export const actionCreators = {
     payload: content,
   }),
 
-  setAbortController: (controller: AbortController | null): SetAbortControllerAction => ({
+  setAbortController: (
+    controller: AbortController | null,
+  ): SetAbortControllerAction => ({
     type: ActionType.SET_ABORT_CONTROLLER,
     payload: controller,
   }),
@@ -218,14 +229,12 @@ export const actionCreators = {
     payload: html,
   }),
 
-  setImageGenerationProgress: (
-    progress: {
-      isGenerating: boolean;
-      current: number;
-      total: number;
-      currentPrompt: string;
-    }
-  ): SetImageGenerationProgressAction => ({
+  setImageGenerationProgress: (progress: {
+    isGenerating: boolean;
+    current: number;
+    total: number;
+    currentPrompt: string;
+  }): SetImageGenerationProgressAction => ({
     type: ActionType.SET_IMAGE_GENERATION_PROGRESS,
     payload: progress,
   }),
@@ -236,7 +245,7 @@ export const actionCreators = {
 
   loadPresentation: (
     stepContents: StepContent,
-    generatedSlidesHTML?: string
+    generatedSlidesHTML?: string,
   ): LoadPresentationAction => ({
     type: ActionType.LOAD_PRESENTATION,
     payload: { stepContents, generatedSlidesHTML },
@@ -257,21 +266,27 @@ function reducer(state: AppState = initialState, action: Action): AppState {
 
     case ActionType.UPDATE_STEP_CONTENT:
       const { step, content } = action.payload;
-      
+
       // Type-safe update of stepContents
       const newStepContents = { ...state.stepContents };
-      
+
       // Only update if step is a valid key of StepContent
-      if (step === "setup" || step === "outline" || step === "speech" || step === "slides" || step === "htmlSlides") {
+      if (
+        step === "setup" ||
+        step === "outline" ||
+        step === "speech" ||
+        step === "slides" ||
+        step === "htmlSlides"
+      ) {
         newStepContents[step] = content;
       }
-      
+
       // Also update generatedSlidesHTML if htmlSlides is being updated
       let newGeneratedSlidesHTML = state.generatedSlidesHTML;
       if (step === "htmlSlides" && typeof content === "string") {
         newGeneratedSlidesHTML = content;
       }
-      
+
       return {
         ...state,
         stepContents: newStepContents,
@@ -331,10 +346,10 @@ function reducer(state: AppState = initialState, action: Action): AppState {
 
     case ActionType.LOAD_PRESENTATION:
       const { stepContents, generatedSlidesHTML } = action.payload;
-      
+
       // Recompose stepHistory based on stepContents
       const newStepHistory: StepType[] = ["setup"];
-      
+
       // Check each step for content
       if (stepContents.outline && stepContents.outline.trim() !== "") {
         newStepHistory.push("outline");
@@ -348,7 +363,7 @@ function reducer(state: AppState = initialState, action: Action): AppState {
       if (stepContents.htmlSlides && stepContents.htmlSlides.trim() !== "") {
         newStepHistory.push("htmlSlides");
       }
-      
+
       return {
         ...state,
         stepContents,
@@ -369,22 +384,27 @@ class Store {
   private reducer: (state: AppState, action: Action) => AppState;
   private autoSaver: StepContentsAutoSaver | null = null;
 
-  constructor(initialState: AppState, reducer: (state: AppState, action: Action) => AppState) {
+  constructor(
+    initialState: AppState,
+    reducer: (state: AppState, action: Action) => AppState,
+  ) {
     this.state = initialState;
     this.reducer = reducer;
-    
+
     // Initialize auto-saver for step contents
     if (typeof window !== "undefined" && IndexedDBService.isSupported()) {
-      this.autoSaver = new StepContentsAutoSaver(async (stepContents, generatedSlidesHTML) => {
-        try {
-          await indexedDBService.saveStepContents(stepContents, generatedSlidesHTML);
-        } catch (error) {
-          console.error("Failed to auto-save step contents:", error);
-        }
-      });
-      
-      // Load saved step contents on initialization
-      this.loadSavedStepContents();
+      this.autoSaver = new StepContentsAutoSaver(
+        async (stepContents, generatedSlidesHTML) => {
+          try {
+            await indexedDBService.saveStepContents(
+              stepContents,
+              generatedSlidesHTML,
+            );
+          } catch (error) {
+            console.error("Failed to auto-save step contents:", error);
+          }
+        },
+      );
     }
   }
 
@@ -395,35 +415,38 @@ class Store {
   dispatch(action: Action): void {
     const previousState = this.state;
     this.state = this.reducer(this.state, action);
-    
+
     // Auto-save step contents when they change
-    if (action.type === ActionType.UPDATE_STEP_CONTENT || action.type === ActionType.LOAD_PRESENTATION) {
+    if (
+      action.type === ActionType.UPDATE_STEP_CONTENT ||
+      action.type === ActionType.LOAD_PRESENTATION
+    ) {
       this.autoSaveStepContents();
     }
-    
+
     // Clear saved data on reset
     if (action.type === ActionType.RESET_STATE) {
       this.clearSavedStepContents();
     }
-    
+
     this.notifyListeners();
   }
 
   subscribe(listener: () => void): () => void {
     this.listeners.push(listener);
     return () => {
-      this.listeners = this.listeners.filter(l => l !== listener);
+      this.listeners = this.listeners.filter((l) => l !== listener);
     };
   }
 
   private notifyListeners(): void {
-    this.listeners.forEach(listener => listener());
+    this.listeners.forEach((listener) => listener());
   }
 
   /**
    * Load saved step contents from IndexedDB
    */
-  private async loadSavedStepContents(): Promise<void> {
+  async loadSavedStepContents(): Promise<void> {
     try {
       const savedData = await indexedDBService.loadStepContents();
       if (savedData) {
@@ -444,9 +467,11 @@ class Store {
    */
   private autoSaveStepContents(): void {
     if (this.autoSaver) {
-      this.autoSaver.save(this.state.stepContents, this.state.generatedSlidesHTML).catch(error => {
-        console.error("Failed to auto-save step contents:", error);
-      });
+      this.autoSaver
+        .save(this.state.stepContents, this.state.generatedSlidesHTML)
+        .catch((error) => {
+          console.error("Failed to auto-save step contents:", error);
+        });
     }
   }
 
@@ -480,6 +505,9 @@ export function useStore(): AppState & {
     const unsubscribe = store.subscribe(() => {
       setState(store.getState());
     });
+
+    // Load saved step contents on initialization
+    store.loadSavedStepContents();
 
     return unsubscribe;
   }, []);

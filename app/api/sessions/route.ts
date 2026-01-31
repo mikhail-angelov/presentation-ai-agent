@@ -38,6 +38,8 @@ export async function POST(request: NextRequest) {
         userId: session.userId,
         metadata: session.metadata,
         actions: session.actions.slice(-10), // Last 10 actions
+        tokensUsed: session.tokensUsed,
+        mlRequestCount: session.mlRequestCount,
       },
     });
 
@@ -93,6 +95,8 @@ export async function GET(request: NextRequest) {
         lastAccessed: session.lastAccessed,
         actions: session.actions.slice(-10), // Last 10 actions
         metadata: session.metadata,
+        tokensUsed: session.tokensUsed,
+        mlRequestCount: session.mlRequestCount,
       },
       stats: {
         totalActions: session.actions.length,
@@ -142,6 +146,8 @@ export async function PUT(request: NextRequest) {
         lastAccessed: updatedSession.lastAccessed,
         actions: updatedSession.actions.slice(-10),
         metadata: updatedSession.metadata,
+        tokensUsed: updatedSession.tokensUsed,
+        mlRequestCount: updatedSession.mlRequestCount,
       },
     });
   } catch (error) {

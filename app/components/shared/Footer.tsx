@@ -12,6 +12,10 @@ interface FooterProps {
 export default function Footer({ rateLimit, session }: FooterProps) {
   const progressPercentage = (rateLimit.used / rateLimit.limit) * 100;
   
+  // Get token usage from session metrics
+  const sessionTokensUsed = session?.tokensUsed || 0;
+  const sessionMLRequests = session?.mlRequestCount || 0;
+  
   // Get token usage from rate limit (actual LLM request tokens)
   const totalTokensUsed = rateLimit.tokensUsed || 0;
   
@@ -57,6 +61,23 @@ export default function Footer({ rateLimit, session }: FooterProps) {
                 <Activity className="h-3 w-3 text-green-500" />
                 <span className="text-xs text-gray-600">
                   {totalTokensUsed.toLocaleString()} tokens
+                </span>
+              </div>
+              {/* Session metrics */}
+              <div className="flex items-center gap-1">
+                <div className="h-3 w-3 flex items-center justify-center">
+                  <div className="h-2 w-2 rounded-full bg-purple-500"></div>
+                </div>
+                <span className="text-xs text-gray-600">
+                  {sessionTokensUsed.toLocaleString()} session tokens
+                </span>
+              </div>
+              <div className="flex items-center gap-1">
+                <div className="h-3 w-3 flex items-center justify-center">
+                  <div className="h-2 w-2 rounded-full bg-orange-500"></div>
+                </div>
+                <span className="text-xs text-gray-600">
+                  {sessionMLRequests} ML requests
                 </span>
               </div>
             </div>

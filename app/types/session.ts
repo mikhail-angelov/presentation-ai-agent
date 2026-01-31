@@ -9,6 +9,8 @@ export type Session = {
   ipAddress?: string;
   actions: UserAction[];
   metadata: Record<string, any>;
+  tokensUsed: number;
+  mlRequestCount: number;
 };
 
 export type UserAction = {

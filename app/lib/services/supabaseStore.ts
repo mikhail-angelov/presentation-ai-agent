@@ -47,6 +47,8 @@ class SupabaseSessionStore {
       ipAddress: request.ipAddress,
       actions: [],
       metadata: request.metadata || {},
+      tokensUsed: 0,
+      mlRequestCount: 0,
     };
 
     try {
@@ -61,6 +63,8 @@ class SupabaseSessionStore {
           user_agent: request.userAgent,
           ip_address: request.ipAddress,
           metadata: request.metadata || {},
+          tokens_used: 0,
+          ml_request_count: 0,
         });
 
       if (error) {
@@ -87,6 +91,8 @@ class SupabaseSessionStore {
       ipAddress: request.ipAddress,
       actions: [],
       metadata: request.metadata || {},
+      tokensUsed: 0,
+      mlRequestCount: 0,
     };
     
     // Store in memory as fallback
@@ -152,6 +158,8 @@ class SupabaseSessionStore {
         ipAddress: data.ip_address,
         actions,
         metadata: data.metadata || {},
+        tokensUsed: data.tokens_used || 0,
+        mlRequestCount: data.ml_request_count || 0,
       };
     } catch (error) {
       console.warn('Error getting session from Supabase, checking in-memory:', error);
@@ -273,6 +281,8 @@ class SupabaseSessionStore {
           ipAddress: sessionData.ip_address,
           actions: [], // We don't load all actions for list view
           metadata: sessionData.metadata || {},
+          tokensUsed: sessionData.tokens_used || 0,
+          mlRequestCount: sessionData.ml_request_count || 0,
           actionCount: count || 0,
         };
       })
@@ -323,6 +333,8 @@ class SupabaseSessionStore {
         totalSessions: 0,
         activeSessions: 0,
         totalActions: 0,
+        totalTokensUsed: 0,
+        totalMLRequests: 0,
       };
     }
 
@@ -330,7 +342,112 @@ class SupabaseSessionStore {
       totalSessions: data.total_sessions || 0,
       activeSessions: data.active_sessions || 0,
       totalActions: data.total_actions || 0,
+      totalTokensUsed: data.total_tokens_used || 0,
+      totalMLRequests: data.total_ml_requests || 0,
     };
+  }
+
+  // Increment session metrics
+  async incrementSessionMetrics(
+    sessionId: string,
+    tokensUsed: number = 0,
+    mlRequestCount: number = 0
+  ): Promise<boolean> {
+    try {
+      // Use the increment_session_metrics function if it exists
+      const { error } = await supabase.rpc('increment_session_metrics', {
+        p_session_id: sessionId,
+        p_tokens_used: tokensUsed,
+        p_ml_request_count: mlRequestCount,
+      });
+
+      if (error) {
+        // Fallback to direct update if function doesn't exist
+        console.warn('increment_session_metrics function not found, using direct update:', error.message);
+        
+        // First get current values
+        const { data: currentData, error: fetchError } = await supabase
+          .from('sessions')
+          .select('tokens_used, ml_request_count')
+          .eq('id', sessionId)
+          .single();
+
+        if (fetchError || !currentData) {
+          console.error('Error fetching current session metrics:', fetchError);
+          return false;
+        }
+
+        // Then update with incremented values
+        const { error: updateError } = await supabase
+          .from('sessions')
+          .update({
+            tokens_used: (currentData.tokens_used || 0) + tokensUsed,
+            ml_request_count: (currentData.ml_request_count || 0) + mlRequestCount,
+            last_accessed: new Date().toISOString(),
+          })
+          .eq('id', sessionId);
+
+        if (updateError) {
+          console.error('Error updating session metrics:', updateError);
+          return false;
+        }
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Error incrementing session metrics:', error);
+      return false;
+    }
+  }
+
+  // Get session metrics
+  async getSessionMetrics(sessionId: string): Promise<{
+    tokensUsed: number;
+    mlRequestCount: number;
+    actionCount: number;
+  } | null> {
+    try {
+      // Try to use the get_session_metrics function if it exists
+      const { data, error } = await supabase.rpc('get_session_metrics', {
+        p_session_id: sessionId,
+      });
+
+      if (error || !data || data.length === 0) {
+        // Fallback to direct query if function doesn't exist
+        console.warn('get_session_metrics function not found, using direct query:', error?.message);
+        
+        const { data: sessionData, error: sessionError } = await supabase
+          .from('sessions')
+          .select('tokens_used, ml_request_count')
+          .eq('id', sessionId)
+          .single();
+
+        if (sessionError || !sessionData) {
+          console.error('Error getting session metrics:', sessionError);
+          return null;
+        }
+
+        const { count } = await supabase
+          .from('user_actions')
+          .select('*', { count: 'exact', head: true })
+          .eq('session_id', sessionId);
+
+        return {
+          tokensUsed: sessionData.tokens_used || 0,
+          mlRequestCount: sessionData.ml_request_count || 0,
+          actionCount: count || 0,
+        };
+      }
+
+      return {
+        tokensUsed: data[0]?.tokens_used || 0,
+        mlRequestCount: data[0]?.ml_request_count || 0,
+        actionCount: Number(data[0]?.action_count) || 0,
+      };
+    } catch (error) {
+      console.error('Error getting session metrics:', error);
+      return null;
+    }
   }
 
   private generateSessionId(): string {
