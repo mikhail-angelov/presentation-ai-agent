@@ -3,6 +3,7 @@ import { useSession } from "@/app/hooks/useSession";
 import { useTranslation } from "@/app/hooks/useTranslation";
 import { useToast } from "@/app/contexts/ToastContext";
 import { presentationActions, PresentationServiceOptions } from "./presentationActions";
+import { IndexedDBService, indexedDBService, StepContentsAutoSaver } from "@/app/lib/services/indexedDBService";
 
 import { StepContent, StepType } from "@/app/types/steps";
 import { LLMRequest, RateLimit } from "@/app/types";
@@ -366,10 +367,25 @@ class Store {
   private state: AppState;
   private listeners: Array<() => void> = [];
   private reducer: (state: AppState, action: Action) => AppState;
+  private autoSaver: StepContentsAutoSaver | null = null;
 
   constructor(initialState: AppState, reducer: (state: AppState, action: Action) => AppState) {
     this.state = initialState;
     this.reducer = reducer;
+    
+    // Initialize auto-saver for step contents
+    if (typeof window !== "undefined" && IndexedDBService.isSupported()) {
+      this.autoSaver = new StepContentsAutoSaver(async (stepContents, generatedSlidesHTML) => {
+        try {
+          await indexedDBService.saveStepContents(stepContents, generatedSlidesHTML);
+        } catch (error) {
+          console.error("Failed to auto-save step contents:", error);
+        }
+      });
+      
+      // Load saved step contents on initialization
+      this.loadSavedStepContents();
+    }
   }
 
   getState(): AppState {
@@ -377,7 +393,19 @@ class Store {
   }
 
   dispatch(action: Action): void {
+    const previousState = this.state;
     this.state = this.reducer(this.state, action);
+    
+    // Auto-save step contents when they change
+    if (action.type === ActionType.UPDATE_STEP_CONTENT || action.type === ActionType.LOAD_PRESENTATION) {
+      this.autoSaveStepContents();
+    }
+    
+    // Clear saved data on reset
+    if (action.type === ActionType.RESET_STATE) {
+      this.clearSavedStepContents();
+    }
+    
     this.notifyListeners();
   }
 
@@ -390,6 +418,47 @@ class Store {
 
   private notifyListeners(): void {
     this.listeners.forEach(listener => listener());
+  }
+
+  /**
+   * Load saved step contents from IndexedDB
+   */
+  private async loadSavedStepContents(): Promise<void> {
+    try {
+      const savedData = await indexedDBService.loadStepContents();
+      if (savedData) {
+        // Dispatch LOAD_PRESENTATION action to update state with saved data
+        const loadAction: LoadPresentationAction = {
+          type: ActionType.LOAD_PRESENTATION,
+          payload: savedData,
+        };
+        this.dispatch(loadAction);
+      }
+    } catch (error) {
+      console.error("Failed to load saved step contents:", error);
+    }
+  }
+
+  /**
+   * Auto-save current step contents
+   */
+  private autoSaveStepContents(): void {
+    if (this.autoSaver) {
+      this.autoSaver.save(this.state.stepContents, this.state.generatedSlidesHTML).catch(error => {
+        console.error("Failed to auto-save step contents:", error);
+      });
+    }
+  }
+
+  /**
+   * Clear saved step contents from IndexedDB
+   */
+  private async clearSavedStepContents(): Promise<void> {
+    try {
+      await indexedDBService.clearStepContents();
+    } catch (error) {
+      console.error("Failed to clear saved step contents:", error);
+    }
   }
 }
 

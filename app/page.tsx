@@ -129,6 +129,20 @@ export default function Home() {
     });
   };
 
+  // Clear presentation data (store and IndexedDB)
+  const handleClearPresentation = () => {
+    // Dispatch RESET_STATE action to clear store
+    dispatcher.resetState();
+    
+    // Show success toast
+    addToast(t("toasts.presentationCleared"), "success");
+    
+    // Track clear action
+    trackAction("clear_presentation", {
+      topic: stepContents.setup.topic || "unknown",
+    });
+  };
+
   // Load presentation data from JSON file
   const handleLoadPresentation = (data: any) => {
     try {
@@ -365,6 +379,7 @@ export default function Home() {
             onFeedback={()=>setShowFeedbackModal(true)}
             onSave={handleSavePresentation}
             onLoad={handleLoadPresentation}
+            onClear={handleClearPresentation}
           />
 
           <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8 min-h-0">

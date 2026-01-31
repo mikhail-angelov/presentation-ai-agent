@@ -51,12 +51,14 @@
   "menu": {
     "savePresentation": "Save Presentation",
     "loadPresentation": "Load Presentation",
+    "clearPresentation": "Clear Presentation",
     "menu": "Menu"
   },
   "toasts": {
     "generationCancelled": "Generation cancelled.",
     "contentCopied": "Content copied to clipboard!",
     "presentationLoaded": "Presentation loaded successfully! Starting from setup step.",
+    "presentationCleared": "Presentation cleared successfully!",
     "loadPresentationFailed": "Failed to load presentation: {error}",
     "enterTopicFirst": "Please enter a presentation topic first.",
     "aiServiceFailed": "Failed to connect to AI service. Please try again.",
@@ -65,7 +67,8 @@
     "generateSlidesFailed": "Failed to generate slides: {error}"
   },
   "alerts": {
-    "invalidJsonFile": "Invalid JSON file. Please select a valid save file."
+    "invalidJsonFile": "Invalid JSON file. Please select a valid save file.",
+    "confirmClearPresentation": "Are you sure you want to clear the presentation? This will reset all steps and clear saved data."
   },
   "preparationSteps": {
     "title": "Preparation Steps",

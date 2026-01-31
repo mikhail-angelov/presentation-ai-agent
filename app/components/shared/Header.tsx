@@ -1,6 +1,6 @@
 "use client";
 
-import { Presentation, Zap, Menu, Save, FolderOpen, Sparkles } from "lucide-react";
+import { Presentation, Zap, Menu, Save, FolderOpen, Sparkles, Trash2 } from "lucide-react";
 import { useTranslation } from "@/app/hooks/useTranslation";
 import { useSession } from "@/app/hooks/useSession";
 import LanguageSwitcher from "./LanguageSwitcher";
@@ -11,9 +11,10 @@ interface HeaderProps {
   onFeedback: () => void;
   onSave: () => void;
   onLoad: (data: any) => void;
+  onClear: () => void;
 }
 
-export default function Header({ onFeedback, onSave, onLoad }: HeaderProps) {
+export default function Header({ onFeedback, onSave, onLoad, onClear }: HeaderProps) {
   const { t } = useTranslation();
   const { addToast } = useToast();
   const { session } = useSession();
@@ -30,6 +31,14 @@ export default function Header({ onFeedback, onSave, onLoad }: HeaderProps) {
     setMenuOpen(false);
     if (fileInputRef.current) {
       fileInputRef.current.click();
+    }
+  };
+
+  const handleClearClick = () => {
+    setMenuOpen(false);
+    // Show confirmation dialog before clearing
+    if (window.confirm(t("alerts.confirmClearPresentation") || "Are you sure you want to clear the presentation? This will reset all steps and clear saved data.")) {
+      onClear();
     }
   };
 
@@ -202,6 +211,14 @@ export default function Header({ onFeedback, onSave, onLoad }: HeaderProps) {
                     >
                       <FolderOpen className="h-4 w-4 text-gray-600" />
                       <span className="text-gray-800 font-medium">{t('menu.loadPresentation')}</span>
+                    </button>
+                    <div className="border-t border-gray-200 my-1"></div>
+                    <button
+                      onClick={handleClearClick}
+                      className="flex items-center gap-3 w-full px-4 py-3 text-left hover:bg-gray-50 transition-colors text-red-600 hover:text-red-700"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      <span className="font-medium">{t('menu.clearPresentation') || "Clear Presentation"}</span>
                     </button>
                   </div>
                 </div>
