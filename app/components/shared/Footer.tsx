@@ -15,12 +15,6 @@ export default function Footer({ session }: FooterProps) {
   
   const progressPercentage = (sessionMLRequests / RATE_LIMIT) * 100;
 
-  
-  // Get last LLM request from store (not session actions)
-  const lastLLMRequest = session?.actions?.find(action => 
-    action.type?.includes('success') && action.tokensUsed
-  );
-
   return (
     <footer className="bg-white border-t border-gray-200 py-3 px-4 md:px-6">
       <div className="max-w-[1600px] mx-auto">
@@ -67,25 +61,7 @@ export default function Footer({ session }: FooterProps) {
 
           {/* Right side: Last LLM request info and GitHub link */}
           <div className="flex items-center gap-4">
-            {/* Last LLM request info */}
-            {lastLLMRequest ? (
-              <div className="text-right">
-                <div className="text-xs font-medium text-gray-700">
-                  Last: {lastLLMRequest.type?.replace(/_/g, ' ')}
-                </div>
-                <div className="text-xs text-gray-500 flex items-center gap-1">
-                  <span>{lastLLMRequest.tokensUsed?.toLocaleString() || 0} tokens</span>
-                  <span>•</span>
-                  <span>{lastLLMRequest.duration || 0}ms</span>
-                </div>
-              </div>
-            ) : (
-              <div className="text-xs text-gray-500">
-                No LLM requests yet
-              </div>
-            )}
-            
-            {/* GitHub link */}
+
             <a 
               href="https://github.com/mikhail-angelov/presentation-ai-agent" 
               target="_blank" 

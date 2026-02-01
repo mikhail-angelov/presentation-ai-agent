@@ -913,7 +913,7 @@ class Store {
         payload: {
           isGenerating: true,
           current: 0,
-          total: placeholders.length,
+          total: 1,
           currentPrompt: "",
         },
       });
@@ -931,7 +931,7 @@ class Store {
           payload: {
             isGenerating: true,
             current: i,
-            total: placeholders.length,
+            total: 1,
             currentPrompt: placeholder.prompt,
           },
         });
@@ -994,8 +994,8 @@ class Store {
         type: ActionType.SET_IMAGE_GENERATION_PROGRESS,
         payload: {
           isGenerating: false,
-          current: placeholders.length,
-          total: placeholders.length,
+          current: 1,
+          total: 1,
           currentPrompt: "",
         },
       });

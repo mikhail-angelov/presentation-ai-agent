@@ -110,20 +110,6 @@ function extractImagePlaceholders(htmlContent: string): Array<{
 }> {
   const placeholders = [];
 
-  // Format 1: Comment placeholders (regular images)
-  const commentPlaceholderRegex = /<!-- IMAGE_PLACEHOLDER:(.+?):(.+?)-->/g;
-  let match;
-
-  while ((match = commentPlaceholderRegex.exec(htmlContent)) !== null) {
-    placeholders.push({
-      fullMatch: match[0],
-      prompt: match[1].trim(),
-      description: match[2].trim(),
-      type: "comment",
-      isBackground: false,
-    });
-  }
-
   // Format 2: Background image placeholders (special format)
   const backgroundPlaceholderRegex = /<!--\s*BACKGROUND_IMAGE_PLACEHOLDER:([^:]+):([^>]+)-->/g;
   let bgMatch;
@@ -135,6 +121,41 @@ function extractImagePlaceholders(htmlContent: string): Array<{
       description: bgMatch[2].trim(),
       type: "background-comment",
       isBackground: true,
+    });
+  }
+
+  // Format 5: Style attribute placeholders (for background images)
+  // Match style="<!-- BACKGROUND_IMAGE_PLACEHOLDER:prompt:description -->" 
+  // The ? after [^"]* makes it non-greedy to avoid consuming the closing quote
+  // Use [^>]* for description to match everything up to -->
+  const stylePlaceholderRegex = /style="[^"]*?<!--\s*BACKGROUND_IMAGE_PLACEHOLDER:([^:]+):([^>]+)-->\s*"/g;
+  let styleMatch;
+
+  while ((styleMatch = stylePlaceholderRegex.exec(htmlContent)) !== null) {
+    placeholders.push({
+      fullMatch: styleMatch[0],
+      prompt: styleMatch[1].trim(),
+      description: styleMatch[2].trim(),
+      type: "style-background",
+      isBackground: true,
+    });
+  }
+
+  // Format 6: Data attributes for background images
+  const dataBackgroundRegex = /<([a-zA-Z][a-zA-Z0-9]*)[^>]*\s+data-background-image="([^"]+)"[^>]*>/g;
+  let dataBgMatch;
+
+  while ((dataBgMatch = dataBackgroundRegex.exec(htmlContent)) !== null) {
+    const element = dataBgMatch[1];
+    const prompt = dataBgMatch[2].trim();
+    
+    placeholders.push({
+      fullMatch: dataBgMatch[0],
+      prompt: prompt,
+      description: `Background image for ${element}`,
+      type: "data-background",
+      isBackground: true,
+      targetElement: element,
     });
   }
 
@@ -196,38 +217,19 @@ function extractImagePlaceholders(htmlContent: string): Array<{
     });
   }
 
-  // Format 5: Style attribute placeholders (for background images)
-  // Match style="<!-- BACKGROUND_IMAGE_PLACEHOLDER:prompt:description -->" 
-  // The ? after [^"]* makes it non-greedy to avoid consuming the closing quote
-  // Use [^>]* for description to match everything up to -->
-  const stylePlaceholderRegex = /style="[^"]*?<!--\s*BACKGROUND_IMAGE_PLACEHOLDER:([^:]+):([^>]+)-->\s*"/g;
-  let styleMatch;
+  
 
-  while ((styleMatch = stylePlaceholderRegex.exec(htmlContent)) !== null) {
+  // Format 1: Comment placeholders (regular images)
+  const commentPlaceholderRegex = /<!-- IMAGE_PLACEHOLDER:(.+?):(.+?)-->/g;
+  let match;
+
+  while ((match = commentPlaceholderRegex.exec(htmlContent)) !== null) {
     placeholders.push({
-      fullMatch: styleMatch[0],
-      prompt: styleMatch[1].trim(),
-      description: styleMatch[2].trim(),
-      type: "style-background",
-      isBackground: true,
-    });
-  }
-
-  // Format 6: Data attributes for background images
-  const dataBackgroundRegex = /<([a-zA-Z][a-zA-Z0-9]*)[^>]*\s+data-background-image="([^"]+)"[^>]*>/g;
-  let dataBgMatch;
-
-  while ((dataBgMatch = dataBackgroundRegex.exec(htmlContent)) !== null) {
-    const element = dataBgMatch[1];
-    const prompt = dataBgMatch[2].trim();
-    
-    placeholders.push({
-      fullMatch: dataBgMatch[0],
-      prompt: prompt,
-      description: `Background image for ${element}`,
-      type: "data-background",
-      isBackground: true,
-      targetElement: element,
+      fullMatch: match[0],
+      prompt: match[1].trim(),
+      description: match[2].trim(),
+      type: "comment",
+      isBackground: false,
     });
   }
 
