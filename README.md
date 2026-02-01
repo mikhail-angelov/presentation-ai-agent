@@ -2,6 +2,10 @@
 
 A modern, AI-powered presentation preparation tool built with Next.js 14, TypeScript, and Tailwind CSS.
 
+## Live Version
+
+The application is live and deployed via Vercel at: [https://presentation.bconf.com/](https://presentation.bconf.com/)
+
 ## Overview
 
 Prez AI Presenter is a web application that helps users create compelling presentations through a guided, step-by-step process. The application provides:
@@ -300,23 +304,30 @@ curl -X POST http://localhost:3000/api/generate-content \
 
 ## Deployment
 
+The application is currently deployed via **Vercel** at: [https://presentation.bconf.com/](https://presentation.bconf.com/)
+
+### Deployment Options
+
 The application can be deployed to:
 
-- **Vercel** (Recommended for Next.js)
+- **Vercel** (Recommended for Next.js) - Currently in use
 - **Netlify**
 - **AWS Amplify**
 - **Docker** container
 
-### Vercel Deployment
+### Vercel Deployment Process
 
 1. Push code to GitHub/GitLab
 2. Import project in Vercel
 3. Configure environment variables
 4. Deploy automatically on push
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `DEEPSEEK_API_KEY` | Your DeepSeek API key | (required) |
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `DEEPSEEK_API_KEY` | DeepSeek LLM API key | Yes |
+| `SUPABASE_URL` | Supabase project URL | Yes (for session storage) |
+| `SUPABASE_ANON_KEY` | Supabase anonymous key | Yes (for session storage) |
+| `YANDEX_API_KEY` | Yandex ML API key | Optional (alternative AI) |
 
 ## Contributing
 
