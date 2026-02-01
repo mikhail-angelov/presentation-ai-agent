@@ -29,6 +29,10 @@ export async function POST(request: NextRequest) {
       metadata,
     });
 
+    if(!session){
+      throw new Error('cannot make session') 
+    }
+
     // Create response with session
     const response = NextResponse.json({
       success: true,

@@ -38,10 +38,8 @@ const supabase = createClient(supabaseProjectUrl, supabaseAnonKey, {
 
 class SupabaseSessionStore {
   private readonly SESSION_TTL = 7 * 24 * 60 * 60 * 1000; // 7 days
-  private inMemorySessions: Map<string, Session> = new Map();
-  private inMemorySessionExpiry: Map<string, NodeJS.Timeout> = new Map();
 
-  async createSession(request: CreateSessionRequest): Promise<Session> {
+  async createSession(request: CreateSessionRequest): Promise<Session|undefined> {
     const sessionId = this.generateSessionId();
     const now = new Date();
 
@@ -77,41 +75,15 @@ class SupabaseSessionStore {
           "Supabase table might not exist yet, using in-memory fallback:",
           error.message,
         );
-        // Fall back to in-memory storage if tables don't exist
-        return this.createSessionInMemory(request, sessionId);
+        return undefined
       }
     } catch (error) {
       console.warn(
         "Supabase connection failed, using in-memory fallback:",
         error,
       );
-      return this.createSessionInMemory(request, sessionId);
+      return undefined;
     }
-
-    return session;
-  }
-
-  private createSessionInMemory(
-    request: CreateSessionRequest,
-    sessionId: string,
-  ): Session {
-    const now = new Date();
-    const session: Session = {
-      id: sessionId,
-      userId: request.userId,
-      createdAt: now,
-      lastAccessed: now,
-      userAgent: request.userAgent,
-      ipAddress: request.ipAddress,
-      actions: [],
-      metadata: request.metadata || {},
-      tokensUsed: 0,
-      mlRequestCount: 0,
-    };
-
-    // Store in memory as fallback
-    this.inMemorySessions.set(sessionId, session);
-    this.setInMemoryExpiry(sessionId);
 
     return session;
   }
@@ -124,18 +96,6 @@ class SupabaseSessionStore {
         .select("*")
         .eq("id", sessionId)
         .single();
-
-      if (error || !data) {
-        // Check in-memory storage as fallback
-        const inMemorySession = this.inMemorySessions.get(sessionId);
-        if (inMemorySession) {
-          // Update last accessed time in memory
-          inMemorySession.lastAccessed = new Date();
-          this.setInMemoryExpiry(sessionId);
-          return inMemorySession;
-        }
-        return undefined;
-      }
 
       // Update last accessed time in database
       const now = new Date();
@@ -180,13 +140,6 @@ class SupabaseSessionStore {
         "Error getting session from Supabase, checking in-memory:",
         error,
       );
-      // Check in-memory storage as fallback
-      const inMemorySession = this.inMemorySessions.get(sessionId);
-      if (inMemorySession) {
-        inMemorySession.lastAccessed = new Date();
-        this.setInMemoryExpiry(sessionId);
-        return inMemorySession;
-      }
       return undefined;
     }
   }
@@ -203,9 +156,10 @@ class SupabaseSessionStore {
     const now = new Date();
     const { tokensUsed, mlRequestCount, metadata } = request;
     // Update last accessed time
+    console.log(`update session ${sessionId}: ${tokensUsed}, ${mlRequestCount}`)
     await supabase
       .from("sessions")
-      .update({ last_accessed: now.toISOString(), tokensUsed, mlRequestCount })
+      .update({ last_accessed: now.toISOString(), tokens_used:tokensUsed, ml_request_count: mlRequestCount })
       .eq("id", sessionId);
 
     // Update metadata if provided
@@ -482,27 +436,6 @@ class SupabaseSessionStore {
 
   private generateActionId(): string {
     return generateUUID();
-  }
-
-  private setInMemoryExpiry(sessionId: string): void {
-    // Clear existing expiry
-    this.clearInMemoryExpiry(sessionId);
-
-    // Set new expiry
-    const timeout = setTimeout(() => {
-      this.inMemorySessions.delete(sessionId);
-      this.inMemorySessionExpiry.delete(sessionId);
-    }, this.SESSION_TTL);
-
-    this.inMemorySessionExpiry.set(sessionId, timeout);
-  }
-
-  private clearInMemoryExpiry(sessionId: string): void {
-    const timeout = this.inMemorySessionExpiry.get(sessionId);
-    if (timeout) {
-      clearTimeout(timeout);
-      this.inMemorySessionExpiry.delete(sessionId);
-    }
   }
 }
 

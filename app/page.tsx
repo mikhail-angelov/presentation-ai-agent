@@ -49,12 +49,9 @@ export default function Home() {
   const [showRateLimitModal, setShowRateLimitModal] = useState(false);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
 
-  // Check if user has exceeded rate limit
-  const hasExceededRateLimit = session?.mlRequestCount||0 >= RATE_LIMIT;
-
   // Helper function to check rate limit before performing actions
   const checkRateLimit = (actionName: string) => {
-    if (hasExceededRateLimit) {
+    if (+(session?.mlRequestCount||0) >= RATE_LIMIT) {
       setShowRateLimitModal(true);
       trackAction("rate_limit_exceeded", {
         action: actionName,
