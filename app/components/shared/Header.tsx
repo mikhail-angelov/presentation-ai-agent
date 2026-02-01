@@ -16,7 +16,6 @@ interface HeaderProps {
 
 export default function Header({ onFeedback, onSave, onLoad, onClear, sessionId }: HeaderProps) {
   const { t } = useTranslation();
-  const { addToast } = useToast();
   const [menuOpen, setMenuOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -81,54 +80,6 @@ export default function Header({ onFeedback, onSave, onLoad, onClear, sessionId 
     };
   }, [menuOpen]);
 
-  const handleFeedbackSubmit = async (feedback: {
-    type: "feedback" | "recommendation" | "issue";
-    message: string;
-    email?: string;
-  }) => {
-    try {
-      // Include session ID if available
-      const feedbackWithSession = {
-        ...feedback,
-        session_id: sessionId || null,
-      };
-
-      // Send feedback to API
-      const response = await fetch('/api/feedback', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(feedbackWithSession),
-      });
-
-      const result = await response.json();
-
-      if (response.ok) {
-        // Show success toast
-        addToast(
-          t("feedback.submit") + " " + t("feedback.thankYou"),
-          'success',
-          5000
-        );
-      } else {
-        // Show error toast
-        addToast(
-          t("feedback.submitFailed") + ": " + (result.error || 'Unknown error'),
-          'error',
-          5000
-        );
-      }
-    } catch (error) {
-      console.error('Error submitting feedback:', error);
-      // Show error toast
-      addToast(
-        t("feedback.submitFailed") + ": " + (error instanceof Error ? error.message : 'Network error'),
-        'error',
-        5000
-      );
-    }
-  };
 
   return (
     <>

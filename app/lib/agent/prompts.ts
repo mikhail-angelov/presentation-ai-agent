@@ -63,6 +63,7 @@ Create comprehensive slide content that:
 3. Suggests visual elements (charts, images, diagrams) where appropriate
 4. Includes slide titles that summarize key messages
 5. Each slide must have minimal text
+6. IMPORTANT: Generate NO MORE THAN ONE IMAGES TOTAL for the entire presentation
 
 Format as markdown with clear slide separators and visual suggestions. Think step-by-step and provide well-reasoned, comprehensive responses.`,
     ru: `Вы эксперт по дизайну презентаций. Создайте содержание слайдов на основе предоставленного сценария речи.
@@ -73,6 +74,7 @@ Format as markdown with clear slide separators and visual suggestions. Think ste
 3. Предлагает визуальные элементы (графики, изображения, диаграммы) там, где это уместно
 4. Включает заголовки слайдов, которые суммируют ключевые сообщения
 5. Каждый слайд должен содержать минимум текста
+6. ВАЖНО: Генерируйте НЕ БОЛЕЕ ОДНОГО ИЗОБРАЖЕНИЙ ВСЕГО для всей презентации
 
 Форматируйте в markdown с четкими разделителями слайдов и визуальными предложениями. Думайте шаг за шагом и предоставляйте хорошо обоснованные, комплексные ответы.`,
   },
@@ -93,7 +95,7 @@ IMPORTANT INSTRUCTIONS:
 
 IMAGE REQUIREMENTS:
 - FIRST SLIDE MUST include an image placeholder that visually represents the main presentation topic
-- IMPORTANT: Generate NO MORE THAN 3 IMAGES TOTAL for the entire presentation
+- IMPORTANT: Generate NO MORE THAN ONE IMAGES TOTAL for the entire presentation
 - Select only the most important slides for images (title slide + 2 key concept slides)
 - Other slides should NOT include image placeholders unless absolutely necessary
 - Use the following format for image placeholders: <!-- IMAGE_PLACEHOLDER:detailed description for image generation:brief description -->
@@ -134,7 +136,7 @@ Generate ONLY the slide sections based on SLIDES CONTENT. Do not include <!DOCTY
 
 ТРЕБОВАНИЯ К ИЗОБРАЖЕНИЯМ:
 - ПЕРВЫЙ СЛАЙД ОБЯЗАТЕЛЬНО должен включать placeholder для изображения, которое визуально представляет основную тему презентации
-- ВАЖНО: Генерируйте НЕ БОЛЕЕ 3 ИЗОБРАЖЕНИЙ ВСЕГО для всей презентации
+- ВАЖНО: Генерируйте НЕ БОЛЕЕ ОДНОГО ИЗОБРАЖЕНИЙ ВСЕГО для всей презентации
 - Выбирайте только самые важные слайды для изображений (титульный слайд + 2 слайда с ключевыми концепциями)
 - Другие слайды НЕ должны включать placeholders для изображений, если это не абсолютно необходимо
 - Используйте следующий формат для placeholders изображений: <!-- IMAGE_PLACEHOLDER:подробное описание для генерации изображения:краткое описание -->

@@ -21,7 +21,7 @@ import { RATE_LIMIT, useStore } from "./lib/flux/store";
 import { dispatcher, dispatcherHelpers } from "./lib/flux/dispatcher";
 
 export default function Home() {
-  const { isLoading, t } = useTranslation();
+  const { currentLanguage, isLoading, t } = useTranslation();
   const { addToast } = useToast();
 
   // Get state from Flux store
@@ -34,7 +34,6 @@ export default function Home() {
     showSlidesModal,
     generatedSlidesHTML,
     imageGenerationProgress,
-    presentationOptions,
     session,
     sessionLoading,
     sessionError,
@@ -43,6 +42,7 @@ export default function Home() {
     generateSpeech,
     generateSlides,
     generateHtmlSlides,
+    generateImages,
   } = useStore();
 
   // Modal states
@@ -51,11 +51,11 @@ export default function Home() {
 
   // Helper function to check rate limit before performing actions
   const checkRateLimit = (actionName: string) => {
-    if (+(session?.mlRequestCount||0) >= RATE_LIMIT) {
+    if (+(session?.mlRequestCount || 0) >= RATE_LIMIT) {
       setShowRateLimitModal(true);
       trackAction("rate_limit_exceeded", {
         action: actionName,
-        used: session?.mlRequestCount||0,
+        used: session?.mlRequestCount || 0,
         limit: RATE_LIMIT,
       });
       return false;
@@ -134,10 +134,10 @@ export default function Home() {
   const handleClearPresentation = () => {
     // Dispatch RESET_STATE action to clear store
     dispatcher.resetState();
-    
+
     // Show success toast
     addToast(t("toasts.presentationCleared"), "success");
-    
+
     // Track clear action
     trackAction("clear_presentation", {
       topic: stepContents.setup.topic || "unknown",
@@ -155,7 +155,7 @@ export default function Home() {
       // Load presentation using dispatcher
       dispatcher.loadPresentation(
         data.stepContents,
-        data.stepContents.htmlSlides
+        data.stepContents.htmlSlides,
       );
 
       // Track load action
@@ -179,58 +179,79 @@ export default function Home() {
   // Step 1: Generate Outline
   const handleGenerateOutline = async () => {
     if (!checkRateLimit("generate_outline")) return;
-    
+
+    if (!stepContents.setup?.topic.trim()) {
+      addToast(t("toasts.enterTopicFirst"), "warning");
+      return;
+    }
+
     try {
-      await generateOutline(
-        stepContents.setup,
-        presentationOptions
-      );
+      await generateOutline(stepContents.setup, currentLanguage);
     } catch (error) {
       console.error("Error generating outline:", error);
+      addToast(t("toasts.aiServiceFailed"), "error");
     }
   };
 
   // Step 2: Generate Speech from Outline
   const handleGenerateSpeech = async () => {
     if (!checkRateLimit("generate_speech")) return;
-    
+
     try {
       await generateSpeech(
         stepContents.setup,
         stepContents.outline,
-        presentationOptions
+        currentLanguage,
       );
     } catch (error) {
       console.error("Error generating speech:", error);
+      addToast(t("toasts.aiServiceFailed"), "error");
     }
   };
 
   // Step 3: Generate Slides from Speech
   const handleGenerateSlides = async () => {
     if (!checkRateLimit("generate_slides")) return;
-    
+
     try {
       await generateSlides(
         stepContents.setup,
         stepContents.speech,
-        presentationOptions
+        currentLanguage,
       );
     } catch (error) {
       console.error("Error generating slides:", error);
+      addToast(t("toasts.aiServiceFailed"), "error");
     }
   };
 
   const handleGenerateHtmlSlides = async () => {
     if (!checkRateLimit("generate_html_slides")) return;
-    
+
     try {
-      await generateHtmlSlides(
+      const { imagePlaceholders, fullContent } = await generateHtmlSlides(
         stepContents.setup,
         stepContents.slides,
-        presentationOptions
+        currentLanguage,
       );
+
+      if (imagePlaceholders.length > 0) {
+        await generateImages(fullContent, imagePlaceholders);
+        addToast(
+          t("toasts.imageGenerationCompleted") || `Generated 1 image`,
+          "success",
+        );
+      } else {
+        addToast(t("toasts.htmlSlidesGenerated"), "success");
+      }
     } catch (error) {
       console.error("Error completing presentation:", error);
+      addToast(
+        t("toasts.generateSlidesFailed", {
+          error: error instanceof Error ? error.message : "Unknown error",
+        }),
+        "error",
+      );
     }
   };
 
@@ -274,7 +295,6 @@ export default function Home() {
       });
     }
   }, []);
-
 
   // Render step content based on active step
   const renderStepContent = () => {
@@ -378,7 +398,7 @@ export default function Home() {
       <div className="flex-1 flex flex-col p-4 md:p-8 h-full overflow-hidden">
         <div className="max-w-7xl mx-auto flex flex-col h-full">
           <Header
-            onFeedback={()=>setShowFeedbackModal(true)}
+            onFeedback={() => setShowFeedbackModal(true)}
             onSave={handleSavePresentation}
             onLoad={handleLoadPresentation}
             onClear={handleClearPresentation}

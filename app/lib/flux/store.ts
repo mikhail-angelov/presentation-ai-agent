@@ -1,12 +1,4 @@
 import { useEffect, useState } from "react";
-import { useTranslation } from "@/app/hooks/useTranslation";
-import { useToast } from "@/app/contexts/ToastContext";
-import {
-  GenerateContentRequest,
-  GenerateContentResponse,
-  presentationActions,
-  PresentationServiceOptions,
-} from "./presentationActions";
 import {
   IndexedDBService,
   indexedDBService,
@@ -16,6 +8,27 @@ import {
 import { StepContent, StepType } from "@/app/types/steps";
 import { LLMRequest } from "@/app/types";
 
+export interface GenerateContentRequest {
+  topic: string;
+  audience: string;
+  duration: string;
+  keyPoints: string[];
+  stepType: "outline" | "speech" | "slides";
+  previousContent?: string;
+  language: string;
+}
+
+// Common interface for generate content response
+export interface GenerateContentResponse {
+  chunk?: string;
+  content?: string;
+  done?: boolean;
+  tokensUsed?: number;
+  duration?: number;
+  error?: string;
+  sessionId?: string;
+  newSessionCreated?: boolean;
+}
 export interface ImagePlaceholder {
   prompt: string;
   description: string;
@@ -46,7 +59,7 @@ export type SessionStats = {
   recentActions: Array<any>;
 };
 
-export const RATE_LIMIT = 10
+export const RATE_LIMIT = 10;
 
 export interface AppState {
   // Step management
@@ -570,9 +583,7 @@ class Store {
 
   async generateContent(
     request: GenerateContentRequest,
-    options: PresentationServiceOptions,
     step: "outline" | "speech" | "slides",
-    additionalData?: Record<string, any>,
   ): Promise<void> {
     const {
       topic,
@@ -583,12 +594,6 @@ class Store {
       previousContent,
       language,
     } = request;
-    const { addToast, t } = options;
-
-    if (step === "outline" && !topic.trim()) {
-      addToast(t("toasts.enterTopicFirst"), "warning");
-      return;
-    }
 
     if (step === "outline") {
       this.trackAction("start_generate-content", {
@@ -598,9 +603,6 @@ class Store {
         keyPoints: keyPoints.filter((kp) => kp.trim() !== ""),
       });
     }
-
-    const startTime = Date.now();
-    const requestId = Math.random().toString(36).substr(2, 9);
 
     // Create abort controller and set it in state
     const abortController = new AbortController();
@@ -702,8 +704,6 @@ class Store {
       }
     } catch (error) {
       console.error(`Error generating ${step}:`, error);
-
-      addToast(t("toasts.aiServiceFailed"), "error");
       throw error;
     } finally {
       this.dispatch({ type: ActionType.SET_IS_GENERATING, payload: false });
@@ -712,10 +712,9 @@ class Store {
   //actions
   async generateOutline(
     setup: StepContent["setup"],
-    options: PresentationServiceOptions,
+    language: string,
   ): Promise<void> {
     const { topic, audience, duration, keyPoints } = setup;
-    const { currentLanguage } = options;
 
     const request: GenerateContentRequest = {
       topic,
@@ -723,22 +722,18 @@ class Store {
       duration,
       keyPoints: keyPoints.filter((kp) => kp.trim() !== ""),
       stepType: "outline",
-      language: currentLanguage,
+      language,
     };
 
-    await this.generateContent(request, options, "outline", {
-      audience,
-      duration,
-    });
+    await this.generateContent(request, "outline");
   }
 
   async generateSpeech(
     setup: StepContent["setup"],
     outline: string,
-    options: PresentationServiceOptions,
+    language: string,
   ): Promise<void> {
     const { topic, audience, duration } = setup;
-    const { currentLanguage } = options;
 
     const request: GenerateContentRequest = {
       topic,
@@ -751,21 +746,18 @@ class Store {
       ],
       stepType: "speech",
       previousContent: outline,
-      language: currentLanguage,
+      language,
     };
 
-    await this.generateContent(request, options, "speech", {
-      outlineLength: outline.length,
-    });
+    await this.generateContent(request, "speech");
   }
 
   async generateSlides(
     setup: StepContent["setup"],
     speech: string,
-    options: PresentationServiceOptions,
+    language: string,
   ): Promise<void> {
     const { topic, audience, duration } = setup;
-    const { currentLanguage } = options;
 
     const request: GenerateContentRequest = {
       topic,
@@ -778,21 +770,18 @@ class Store {
       ],
       stepType: "slides",
       previousContent: speech,
-      language: currentLanguage,
+      language,
     };
 
-    await this.generateContent(request, options, "slides", {
-      speechLength: speech.length,
-    });
+    await this.generateContent(request, "slides");
   }
 
   async generateHtmlSlides(
     setup: StepContent["setup"],
     slidesContent: string,
-    options: PresentationServiceOptions,
-  ): Promise<void> {
+    language: string,
+  ): Promise<{ fullContent: string; imagePlaceholders: ImagePlaceholder[] }> {
     const { topic, audience, duration } = setup;
-    const { addToast, t, currentLanguage } = options;
 
     // Create abort controller and set it in state
     const abortController = new AbortController();
@@ -826,7 +815,7 @@ class Store {
           slidesContent,
           exampleHtml,
           templateHtml,
-          language: currentLanguage,
+          language,
         }),
       });
 
@@ -885,10 +874,6 @@ class Store {
                   payload: htmlContent.length / 4,
                 });
                 imagePlaceholders = data.imagePlaceholders;
-
-                if (imagePlaceholders.length === 0) {
-                  addToast(t("toasts.htmlSlidesGenerated"), "success");
-                }
               }
 
               if (data.error) {
@@ -908,21 +893,9 @@ class Store {
         payload: "htmlSlides",
       });
 
-      if (imagePlaceholders.length > 0) {
-        setTimeout(() => {
-          this.generateImages(fullContent, imagePlaceholders, options);
-        }, 1000);
-      } else {
-        addToast(t("toasts.htmlSlidesGenerated"), "success");
-      }
+      return { imagePlaceholders: imagePlaceholders || [], fullContent };
     } catch (error) {
       console.error("Error generating slides:", error);
-      addToast(
-        t("toasts.generateSlidesFailed", {
-          error: error instanceof Error ? error.message : "Unknown error",
-        }),
-        "error",
-      );
 
       throw error;
     } finally {
@@ -933,10 +906,7 @@ class Store {
   async generateImages(
     htmlContent: string,
     placeholders: ImagePlaceholder[],
-    options: PresentationServiceOptions,
   ): Promise<void> {
-    const { addToast, t } = options;
-
     try {
       this.dispatch({
         type: ActionType.SET_IMAGE_GENERATION_PROGRESS,
@@ -948,17 +918,11 @@ class Store {
         },
       });
 
-      addToast(
-        t("toasts.imageGenerationStarted") ||
-          `Generating ${placeholders.length} images...`,
-        "info",
-      );
-
       let processedHtml = htmlContent;
       let imagesGenerated = 0;
 
-      // Process each placeholder one by one
-      for (let i = 0; i < placeholders.length; i++) {
+      // Process only first one
+      for (let i = 0; i < 1; i++) {
         const placeholder = placeholders[i];
 
         // Update progress for current placeholder
@@ -1036,12 +1000,6 @@ class Store {
         },
       });
 
-      addToast(
-        t("toasts.imageGenerationCompleted") ||
-          `Generated ${imagesGenerated} of ${placeholders.length} images`,
-        "success",
-      );
-
       // Track completion
       this.trackAction("image_generation_completed", {
         totalPlaceholders: placeholders.length,
@@ -1049,12 +1007,6 @@ class Store {
       });
     } catch (error) {
       console.error("Error in image generation:", error);
-      addToast(
-        t("toasts.imageGenerationFailed", {
-          error: error instanceof Error ? error.message : "Unknown error",
-        }),
-        "error",
-      );
 
       this.dispatch({
         type: ActionType.SET_IMAGE_GENERATION_PROGRESS,
@@ -1155,8 +1107,6 @@ const initializeSession = async () => {
 
 // Hook for React components
 export function useStore(): AppState & {
-  presentationActions: typeof presentationActions;
-  presentationOptions: PresentationServiceOptions;
   trackAction: (
     type: string,
     data?: Record<string, any>,
@@ -1167,48 +1117,29 @@ export function useStore(): AppState & {
   // Store actions
   generateOutline: (
     setup: StepContent["setup"],
-    options: PresentationServiceOptions,
+    language: string,
   ) => Promise<void>;
   generateSpeech: (
     setup: StepContent["setup"],
     outline: string,
-    options: PresentationServiceOptions,
+    language: string,
   ) => Promise<void>;
   generateSlides: (
     setup: StepContent["setup"],
     speech: string,
-    options: PresentationServiceOptions,
+    language: string,
   ) => Promise<void>;
   generateHtmlSlides: (
     setup: StepContent["setup"],
     slidesContent: string,
-    options: PresentationServiceOptions,
-  ) => Promise<void>;
+    language: string,
+  ) => Promise<{ fullContent: string; imagePlaceholders: ImagePlaceholder[] }>;
   generateImages: (
     htmlContent: string,
     placeholders: ImagePlaceholder[],
-    options: PresentationServiceOptions,
   ) => Promise<void>;
 } {
   const [state, setState] = useState(store.getState());
-  const { t, currentLanguage } = useTranslation();
-  const { addToast } = useToast();
-
-  // Clear session (logout)
-  const clearSession = async () => {
-    try {
-      await fetch("/api/sessions", {
-        method: "DELETE",
-        credentials: "include",
-      });
-      store.dispatch({
-        type: ActionType.SET_SESSION,
-        payload: null,
-      });
-    } catch (err) {
-      console.error("Failed to clear session:", err);
-    }
-  };
 
   useEffect(() => {
     const unsubscribe = store.subscribe(() => {
@@ -1224,18 +1155,8 @@ export function useStore(): AppState & {
     return unsubscribe;
   }, []);
 
-  // Compose presentation options
-  const presentationOptions: PresentationServiceOptions = {
-    trackAction: store.trackAction.bind(store),
-    addToast,
-    t,
-    currentLanguage,
-  };
-
   return {
     ...state,
-    presentationActions,
-    presentationOptions,
     trackAction: store.trackAction.bind(store),
     generateOutline: store.generateOutline.bind(store),
     generateSpeech: store.generateSpeech.bind(store),
