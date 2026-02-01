@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "@/app/hooks/useTranslation";
 import { useToast } from "@/app/contexts/ToastContext";
 import {
+  GenerateContentRequest,
+  GenerateContentResponse,
   presentationActions,
   PresentationServiceOptions,
 } from "./presentationActions";
@@ -12,7 +14,13 @@ import {
 } from "@/app/lib/services/indexedDBService";
 
 import { StepContent, StepType } from "@/app/types/steps";
-import { LLMRequest, RateLimit } from "@/app/types";
+import { LLMRequest } from "@/app/types";
+
+export interface ImagePlaceholder {
+  prompt: string;
+  description: string;
+  type: string;
+}
 
 // Session types moved from useSession.ts
 export type SessionData = {
@@ -38,6 +46,8 @@ export type SessionStats = {
   recentActions: Array<any>;
 };
 
+export const RATE_LIMIT = 10
+
 export interface AppState {
   // Step management
   activeStep: StepType;
@@ -46,7 +56,6 @@ export interface AppState {
 
   // UI states
   llmRequests: LLMRequest[];
-  rateLimit: RateLimit;
   isGenerating: boolean;
   streamingContent: string;
   abortController: AbortController | null;
@@ -86,11 +95,6 @@ const initialState: AppState = {
     htmlSlides: "",
   },
   llmRequests: [],
-  rateLimit: {
-    used: 0,
-    limit: 10,
-    tokensUsed: 0,
-  },
   isGenerating: false,
   streamingContent: "",
   abortController: null,
@@ -113,7 +117,6 @@ export enum ActionType {
   SET_ACTIVE_STEP = "SET_ACTIVE_STEP",
   UPDATE_STEP_CONTENT = "UPDATE_STEP_CONTENT",
   ADD_LLM_REQUEST = "ADD_LLM_REQUEST",
-  SET_RATE_LIMIT = "SET_RATE_LIMIT",
   SET_IS_GENERATING = "SET_IS_GENERATING",
   SET_STREAMING_CONTENT = "SET_STREAMING_CONTENT",
   SET_ABORT_CONTROLLER = "SET_ABORT_CONTROLLER",
@@ -146,11 +149,6 @@ interface UpdateStepContentAction {
 interface AddLLMRequestAction {
   type: ActionType.ADD_LLM_REQUEST;
   payload: LLMRequest;
-}
-
-interface SetRateLimitAction {
-  type: ActionType.SET_RATE_LIMIT;
-  payload: RateLimit;
 }
 
 interface SetIsGeneratingAction {
@@ -218,14 +216,13 @@ interface SetSessionErrorAction {
 
 interface UpdateSessionAction {
   type: ActionType.UPDATE_SESSION;
-  payload: SessionData;
+  payload: number;
 }
 
 export type Action =
   | SetActiveStepAction
   | UpdateStepContentAction
   | AddLLMRequestAction
-  | SetRateLimitAction
   | SetIsGeneratingAction
   | SetStreamingContentAction
   | SetAbortControllerAction
@@ -257,11 +254,6 @@ export const actionCreators = {
   addLLMRequest: (request: LLMRequest): AddLLMRequestAction => ({
     type: ActionType.ADD_LLM_REQUEST,
     payload: request,
-  }),
-
-  setRateLimit: (rateLimit: RateLimit): SetRateLimitAction => ({
-    type: ActionType.SET_RATE_LIMIT,
-    payload: rateLimit,
   }),
 
   setIsGenerating: (isGenerating: boolean): SetIsGeneratingAction => ({
@@ -361,12 +353,6 @@ function reducer(state: AppState = initialState, action: Action): AppState {
         llmRequests: [action.payload, ...state.llmRequests.slice(0, 9)],
       };
 
-    case ActionType.SET_RATE_LIMIT:
-      return {
-        ...state,
-        rateLimit: action.payload,
-      };
-
     case ActionType.SET_IS_GENERATING:
       return {
         ...state,
@@ -457,9 +443,15 @@ function reducer(state: AppState = initialState, action: Action): AppState {
       };
 
     case ActionType.UPDATE_SESSION:
+      const session = state.session;
+      if (session) {
+        session.mlRequestCount += 1;
+        session.tokensUsed += action.payload;
+        session.lastAccessed = new Date().toISOString();
+      }
       return {
         ...state,
-        session: action.payload,
+        session,
       };
 
     default:
@@ -575,13 +567,593 @@ class Store {
       console.error("Failed to clear saved step contents:", error);
     }
   }
+
+  async generateContent(
+    request: GenerateContentRequest,
+    options: PresentationServiceOptions,
+    step: "outline" | "speech" | "slides",
+    additionalData?: Record<string, any>,
+  ): Promise<void> {
+    const {
+      topic,
+      audience,
+      duration,
+      keyPoints,
+      stepType,
+      previousContent,
+      language,
+    } = request;
+    const { addToast, t } = options;
+
+    if (step === "outline" && !topic.trim()) {
+      addToast(t("toasts.enterTopicFirst"), "warning");
+      return;
+    }
+
+    if (step === "outline") {
+      this.trackAction("start_generate-content", {
+        topic,
+        audience,
+        duration,
+        keyPoints: keyPoints.filter((kp) => kp.trim() !== ""),
+      });
+    }
+
+    const startTime = Date.now();
+    const requestId = Math.random().toString(36).substr(2, 9);
+
+    // Create abort controller and set it in state
+    const abortController = new AbortController();
+
+    // Set initial states
+    this.dispatch({ type: ActionType.SET_STREAMING_CONTENT, payload: "" });
+    this.dispatch({ type: ActionType.SET_IS_GENERATING, payload: true });
+    this.dispatch({
+      type: ActionType.SET_ABORT_CONTROLLER,
+      payload: abortController,
+    });
+
+    try {
+      const response = await fetch("/api/generate-content", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        signal: abortController.signal,
+        body: JSON.stringify({
+          topic,
+          audience,
+          duration,
+          keyPoints: keyPoints.filter((kp) => kp.trim() !== ""),
+          stepType,
+          previousContent,
+          language,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      if (!response.body) {
+        throw new Error("No response body");
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let fullContent = "";
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value);
+        buffer += chunk;
+
+        // Process complete lines
+        const lines = buffer.split("\n");
+        // Keep the last incomplete line in buffer
+        buffer = lines.pop() || "";
+
+        for (const line of lines) {
+          if (line.startsWith("data: ")) {
+            try {
+              const data: GenerateContentResponse = JSON.parse(line.slice(6));
+
+              if (data.chunk) {
+                fullContent += data.chunk;
+                this.dispatch({
+                  type: ActionType.SET_STREAMING_CONTENT,
+                  payload: fullContent,
+                });
+              }
+
+              if (data.done) {
+                const content = data.content || fullContent;
+                this.dispatch({
+                  type: ActionType.UPDATE_STEP_CONTENT,
+                  payload: { step, content },
+                });
+                this.dispatch({
+                  type: ActionType.UPDATE_SESSION,
+                  payload: content.length / 4,
+                });
+
+                setTimeout(() => {
+                  this.dispatch({
+                    type: ActionType.SET_ACTIVE_STEP,
+                    payload: step,
+                  });
+                }, 500);
+              }
+
+              if (data.error) {
+                throw new Error(data.error);
+              }
+            } catch (e) {
+              console.error("Error parsing SSE data:", e);
+              // Don't throw here, just log and continue
+              // The error might be due to incomplete JSON that will be completed in next chunk
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error(`Error generating ${step}:`, error);
+
+      addToast(t("toasts.aiServiceFailed"), "error");
+      throw error;
+    } finally {
+      this.dispatch({ type: ActionType.SET_IS_GENERATING, payload: false });
+    }
+  }
+  //actions
+  async generateOutline(
+    setup: StepContent["setup"],
+    options: PresentationServiceOptions,
+  ): Promise<void> {
+    const { topic, audience, duration, keyPoints } = setup;
+    const { currentLanguage } = options;
+
+    const request: GenerateContentRequest = {
+      topic,
+      audience,
+      duration,
+      keyPoints: keyPoints.filter((kp) => kp.trim() !== ""),
+      stepType: "outline",
+      language: currentLanguage,
+    };
+
+    await this.generateContent(request, options, "outline", {
+      audience,
+      duration,
+    });
+  }
+
+  async generateSpeech(
+    setup: StepContent["setup"],
+    outline: string,
+    options: PresentationServiceOptions,
+  ): Promise<void> {
+    const { topic, audience, duration } = setup;
+    const { currentLanguage } = options;
+
+    const request: GenerateContentRequest = {
+      topic,
+      audience,
+      duration,
+      keyPoints: [
+        "Convert outline to spoken speech",
+        "Natural speaking style",
+        "Engaging delivery",
+      ],
+      stepType: "speech",
+      previousContent: outline,
+      language: currentLanguage,
+    };
+
+    await this.generateContent(request, options, "speech", {
+      outlineLength: outline.length,
+    });
+  }
+
+  async generateSlides(
+    setup: StepContent["setup"],
+    speech: string,
+    options: PresentationServiceOptions,
+  ): Promise<void> {
+    const { topic, audience, duration } = setup;
+    const { currentLanguage } = options;
+
+    const request: GenerateContentRequest = {
+      topic,
+      audience,
+      duration,
+      keyPoints: [
+        "Create slide content",
+        "Visual suggestions",
+        "Slide structure",
+      ],
+      stepType: "slides",
+      previousContent: speech,
+      language: currentLanguage,
+    };
+
+    await this.generateContent(request, options, "slides", {
+      speechLength: speech.length,
+    });
+  }
+
+  async generateHtmlSlides(
+    setup: StepContent["setup"],
+    slidesContent: string,
+    options: PresentationServiceOptions,
+  ): Promise<void> {
+    const { topic, audience, duration } = setup;
+    const { addToast, t, currentLanguage } = options;
+
+    // Create abort controller and set it in state
+    const abortController = new AbortController();
+
+    // Set initial states
+    this.dispatch({ type: ActionType.SET_IS_GENERATING, payload: true });
+    this.dispatch({ type: ActionType.SET_STREAMING_CONTENT, payload: "" });
+    this.dispatch({
+      type: ActionType.SET_ABORT_CONTROLLER,
+      payload: abortController,
+    });
+
+    try {
+      // Read example presentation HTML
+      const templateResponse = await fetch("/presentation.html");
+      const templateHtml = await templateResponse.text();
+      const exampleResponse = await fetch("/example-slides.html");
+      const exampleHtml = await exampleResponse.text();
+
+      // Step 1: Generate HTML slides with placeholders
+      const response = await fetch("/api/generate-slides", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        signal: abortController.signal,
+        body: JSON.stringify({
+          topic,
+          audience,
+          duration,
+          slidesContent,
+          exampleHtml,
+          templateHtml,
+          language: currentLanguage,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      if (!response.body) {
+        throw new Error("No response body");
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let tempContent = "";
+      let fullContent = "";
+      let imagePlaceholders: ImagePlaceholder[] = [];
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value);
+        buffer += chunk;
+
+        // Process complete lines
+        const lines = buffer.split("\n");
+        // Keep the last incomplete line in buffer
+        buffer = lines.pop() || "";
+
+        for (const line of lines) {
+          if (line.startsWith("data: ")) {
+            try {
+              const data = JSON.parse(line.slice(6));
+
+              if (data.chunk) {
+                tempContent += data.chunk;
+                this.dispatch({
+                  type: ActionType.SET_STREAMING_CONTENT,
+                  payload: tempContent,
+                });
+              } else if (data.type === "content_chunk" && data.fullChunk) {
+                fullContent += data.fullChunk;
+                this.dispatch({
+                  type: ActionType.SET_STREAMING_CONTENT,
+                  payload: fullContent,
+                });
+              } else if (data.type === "final_completion" && data.done) {
+                const htmlContent = fullContent;
+                this.dispatch({
+                  type: ActionType.UPDATE_STEP_CONTENT,
+                  payload: { step: "htmlSlides", content: htmlContent },
+                });
+                this.dispatch({
+                  type: ActionType.UPDATE_SESSION,
+                  payload: htmlContent.length / 4,
+                });
+                imagePlaceholders = data.imagePlaceholders;
+
+                if (imagePlaceholders.length === 0) {
+                  addToast(t("toasts.htmlSlidesGenerated"), "success");
+                }
+              }
+
+              if (data.error) {
+                throw new Error(data.error);
+              }
+            } catch (e) {
+              console.error("Error parsing SSE data:", e);
+              // Don't throw here, just log and continue
+              // The error might be due to incomplete JSON that will be completed in next chunk
+            }
+          }
+        }
+      }
+
+      this.dispatch({
+        type: ActionType.SET_ACTIVE_STEP,
+        payload: "htmlSlides",
+      });
+
+      if (imagePlaceholders.length > 0) {
+        setTimeout(() => {
+          this.generateImages(fullContent, imagePlaceholders, options);
+        }, 1000);
+      } else {
+        addToast(t("toasts.htmlSlidesGenerated"), "success");
+      }
+    } catch (error) {
+      console.error("Error generating slides:", error);
+      addToast(
+        t("toasts.generateSlidesFailed", {
+          error: error instanceof Error ? error.message : "Unknown error",
+        }),
+        "error",
+      );
+
+      throw error;
+    } finally {
+      this.dispatch({ type: ActionType.SET_IS_GENERATING, payload: false });
+    }
+  }
+
+  async generateImages(
+    htmlContent: string,
+    placeholders: ImagePlaceholder[],
+    options: PresentationServiceOptions,
+  ): Promise<void> {
+    const { addToast, t } = options;
+
+    try {
+      this.dispatch({
+        type: ActionType.SET_IMAGE_GENERATION_PROGRESS,
+        payload: {
+          isGenerating: true,
+          current: 0,
+          total: placeholders.length,
+          currentPrompt: "",
+        },
+      });
+
+      addToast(
+        t("toasts.imageGenerationStarted") ||
+          `Generating ${placeholders.length} images...`,
+        "info",
+      );
+
+      let processedHtml = htmlContent;
+      let imagesGenerated = 0;
+
+      // Process each placeholder one by one
+      for (let i = 0; i < placeholders.length; i++) {
+        const placeholder = placeholders[i];
+
+        // Update progress for current placeholder
+        this.dispatch({
+          type: ActionType.SET_IMAGE_GENERATION_PROGRESS,
+          payload: {
+            isGenerating: true,
+            current: i,
+            total: placeholders.length,
+            currentPrompt: placeholder.prompt,
+          },
+        });
+
+        try {
+          // Call API to generate single image
+          const response = await fetch("/api/generate-images", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              htmlContent: processedHtml,
+              placeholderIndex: i,
+              placeholder: {
+                prompt: placeholder.prompt,
+                description: placeholder.description,
+                type: placeholder.type,
+              },
+            }),
+          });
+
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+
+          const result = await response.json();
+
+          if (result.success && result.htmlContent) {
+            processedHtml = result.htmlContent;
+            imagesGenerated++;
+
+            // Update the displayed HTML after each image
+            this.dispatch({
+              type: ActionType.UPDATE_STEP_CONTENT,
+              payload: { step: "htmlSlides", content: processedHtml },
+            });
+            this.dispatch({
+              type: ActionType.SET_STREAMING_CONTENT,
+              payload: processedHtml,
+            });
+
+            console.log(
+              `✅ Generated image ${i + 1}/${placeholders.length}: "${placeholder.prompt}"`,
+            );
+          } else {
+            console.error(
+              `❌ Failed to generate image ${i + 1}:`,
+              result.error,
+            );
+          }
+        } catch (error) {
+          console.error(`❌ Error generating image ${i + 1}:`, error);
+          // Continue with next placeholder even if one fails
+        }
+      }
+
+      // Update progress to show completion
+      this.dispatch({
+        type: ActionType.SET_IMAGE_GENERATION_PROGRESS,
+        payload: {
+          isGenerating: false,
+          current: placeholders.length,
+          total: placeholders.length,
+          currentPrompt: "",
+        },
+      });
+
+      addToast(
+        t("toasts.imageGenerationCompleted") ||
+          `Generated ${imagesGenerated} of ${placeholders.length} images`,
+        "success",
+      );
+
+      // Track completion
+      this.trackAction("image_generation_completed", {
+        totalPlaceholders: placeholders.length,
+        imagesGenerated,
+      });
+    } catch (error) {
+      console.error("Error in image generation:", error);
+      addToast(
+        t("toasts.imageGenerationFailed", {
+          error: error instanceof Error ? error.message : "Unknown error",
+        }),
+        "error",
+      );
+
+      this.dispatch({
+        type: ActionType.SET_IMAGE_GENERATION_PROGRESS,
+        payload: {
+          isGenerating: false,
+          current: 0,
+          total: 0,
+          currentPrompt: "",
+        },
+      });
+      throw error;
+    }
+  }
+
+  // Track user action
+  async trackAction(type: string, data?: Record<string, any>) {
+    if (!this.state.session) return;
+
+    try {
+      const action = {
+        type,
+        timestamp: new Date().toISOString(),
+        data,
+      };
+
+      const response = await fetch("/api/actions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify(action),
+      });
+    } catch (err) {
+      console.error("Failed to track action:", err);
+    }
+  }
 }
 
 // Create singleton store instance
 export const store = new Store(initialState, reducer);
 
-// Hook for React components
+// Initialize or get existing session
+const initializeSession = async () => {
+  try {
+    store.dispatch({
+      type: ActionType.SET_SESSION_LOADING,
+      payload: true,
+    });
 
+    const response = await fetch("/api/sessions", {
+      method: "GET",
+      credentials: "include",
+    });
+
+    if (response.status === 404) {
+      // No session exists, create a new one
+      const createResponse = await fetch("/api/sessions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({
+          metadata: {
+            initializedAt: new Date().toISOString(),
+            userAgent: navigator.userAgent,
+          },
+        }),
+      });
+
+      if (!createResponse.ok) {
+        throw new Error("Failed to create session");
+      }
+
+      const data = await createResponse.json();
+      store.dispatch({
+        type: ActionType.SET_SESSION,
+        payload: data.session,
+      });
+    } else if (response.ok) {
+      const data = await response.json();
+      store.dispatch({
+        type: ActionType.SET_SESSION,
+        payload: data.session,
+      });
+    } else {
+      throw new Error("Failed to get session");
+    }
+  } catch (err) {
+    store.dispatch({
+      type: ActionType.SET_SESSION_ERROR,
+      payload: err instanceof Error ? err.message : "Unknown error",
+    });
+    console.error("Session initialization error:", err);
+  }
+};
+
+// Hook for React components
 export function useStore(): AppState & {
   presentationActions: typeof presentationActions;
   presentationOptions: PresentationServiceOptions;
@@ -590,149 +1162,51 @@ export function useStore(): AppState & {
     data?: Record<string, any>,
     result?: Record<string, any>,
     tokensUsed?: number,
-    duration?: number
+    duration?: number,
+  ) => Promise<void>;
+  // Store actions
+  generateOutline: (
+    setup: StepContent["setup"],
+    options: PresentationServiceOptions,
+  ) => Promise<void>;
+  generateSpeech: (
+    setup: StepContent["setup"],
+    outline: string,
+    options: PresentationServiceOptions,
+  ) => Promise<void>;
+  generateSlides: (
+    setup: StepContent["setup"],
+    speech: string,
+    options: PresentationServiceOptions,
+  ) => Promise<void>;
+  generateHtmlSlides: (
+    setup: StepContent["setup"],
+    slidesContent: string,
+    options: PresentationServiceOptions,
+  ) => Promise<void>;
+  generateImages: (
+    htmlContent: string,
+    placeholders: ImagePlaceholder[],
+    options: PresentationServiceOptions,
   ) => Promise<void>;
 } {
   const [state, setState] = useState(store.getState());
   const { t, currentLanguage } = useTranslation();
   const { addToast } = useToast();
 
-  // Initialize or get existing session
-  const initializeSession = async () => {
-    try {
-      store.dispatch({
-        type: ActionType.SET_SESSION_LOADING,
-        payload: true,
-      });
-
-      const response = await fetch('/api/sessions', {
-        method: 'GET',
-        credentials: 'include',
-      });
-
-      if (response.status === 404) {
-        // No session exists, create a new one
-        const createResponse = await fetch('/api/sessions', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          credentials: 'include',
-          body: JSON.stringify({
-            metadata: {
-              initializedAt: new Date().toISOString(),
-              userAgent: navigator.userAgent,
-            },
-          }),
-        });
-
-        if (!createResponse.ok) {
-          throw new Error('Failed to create session');
-        }
-
-        const data = await createResponse.json();
-        store.dispatch({
-          type: ActionType.SET_SESSION,
-          payload: data.session,
-        });
-      } else if (response.ok) {
-        const data = await response.json();
-        store.dispatch({
-          type: ActionType.SET_SESSION,
-          payload: data.session,
-        });
-      } else {
-        throw new Error('Failed to get session');
-      }
-    } catch (err) {
-      store.dispatch({
-        type: ActionType.SET_SESSION_ERROR,
-        payload: err instanceof Error ? err.message : 'Unknown error',
-      });
-      console.error('Session initialization error:', err);
-    }
-  };
-
-  // Track user action
-  const trackAction = async (
-    type: string,
-    data?: Record<string, any>,
-    result?: Record<string, any>,
-    tokensUsed?: number,
-    duration?: number
-  ) => {
-    if (!state.session) return;
-    
-    try {
-      const action = {
-        type,
-        timestamp: new Date().toISOString(),
-        data,
-        result,
-        tokensUsed,
-        duration,
-      };
-
-      const response = await fetch('/api/sessions', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({ action }),
-      });
-
-      if (response.ok) {
-        const updated = await response.json();
-        store.dispatch({
-          type: ActionType.UPDATE_SESSION,
-          payload: updated.session,
-        });
-      }
-    } catch (err) {
-      console.error('Failed to track action:', err);
-    }
-  };
-
-  // Update session metadata
-  const updateMetadata = async (metadata: Record<string, any>) => {
-    if (!state.session) return;
-
-    try {
-      const response = await fetch('/api/sessions', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({ metadata }),
-      });
-
-      if (response.ok) {
-        const updated = await response.json();
-        store.dispatch({
-          type: ActionType.UPDATE_SESSION,
-          payload: updated.session,
-        });
-      }
-    } catch (err) {
-      console.error('Failed to update metadata:', err);
-    }
-  };
-
   // Clear session (logout)
   const clearSession = async () => {
     try {
-      await fetch('/api/sessions', {
-        method: 'DELETE',
-        credentials: 'include',
+      await fetch("/api/sessions", {
+        method: "DELETE",
+        credentials: "include",
       });
       store.dispatch({
         type: ActionType.SET_SESSION,
         payload: null,
       });
     } catch (err) {
-      console.error('Failed to clear session:', err);
+      console.error("Failed to clear session:", err);
     }
   };
 
@@ -752,17 +1226,21 @@ export function useStore(): AppState & {
 
   // Compose presentation options
   const presentationOptions: PresentationServiceOptions = {
-    trackAction,
+    trackAction: store.trackAction.bind(store),
     addToast,
     t,
     currentLanguage,
-    sessionActionsLength: state.session?.actions?.length,
   };
 
   return {
     ...state,
     presentationActions,
     presentationOptions,
-    trackAction,
+    trackAction: store.trackAction.bind(store),
+    generateOutline: store.generateOutline.bind(store),
+    generateSpeech: store.generateSpeech.bind(store),
+    generateSlides: store.generateSlides.bind(store),
+    generateHtmlSlides: store.generateHtmlSlides.bind(store),
+    generateImages: store.generateImages.bind(store),
   };
 }

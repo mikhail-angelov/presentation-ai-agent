@@ -121,13 +121,10 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { action, metadata } = body as UpdateSessionRequest;
+    const data = body as UpdateSessionRequest;
 
     // Update session with new action or metadata
-    const updatedSession = await sessionStore.updateSession(sessionId, {
-      action,
-      metadata,
-    });
+    const updatedSession = await sessionStore.updateSession(sessionId, data);
 
     if (!updatedSession) {
       // Clear invalid cookie

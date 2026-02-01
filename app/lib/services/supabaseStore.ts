@@ -1,11 +1,16 @@
-import { createClient } from '@supabase/supabase-js';
-import { Session, UserAction, CreateSessionRequest, UpdateSessionRequest } from '@/app/types/session';
+import { createClient } from "@supabase/supabase-js";
+import {
+  Session,
+  UserAction,
+  CreateSessionRequest,
+  UpdateSessionRequest,
+} from "@/app/types/session";
 
 // Generate a UUID v4
 export function generateUUID(): string {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-    const r = Math.random() * 16 | 0;
-    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function (c) {
+    const r = (Math.random() * 16) | 0;
+    const v = c === "x" ? r : (r & 0x3) | 0x8;
     return v.toString(16);
   });
 }
@@ -15,7 +20,9 @@ const supabaseProjectUrl = process.env.SUPABASE_URL;
 const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
 
 if (!supabaseProjectUrl || !supabaseAnonKey) {
-  throw new Error('SUPABASE_URL and SUPABASE_ANON_KEY environment variables are required');
+  throw new Error(
+    "SUPABASE_URL and SUPABASE_ANON_KEY environment variables are required",
+  );
 }
 
 // Create Supabase client
@@ -25,8 +32,8 @@ const supabase = createClient(supabaseProjectUrl, supabaseAnonKey, {
     autoRefreshToken: false,
   },
   db: {
-    schema: 'public'
-  }
+    schema: "public",
+  },
 });
 
 class SupabaseSessionStore {
@@ -37,7 +44,7 @@ class SupabaseSessionStore {
   async createSession(request: CreateSessionRequest): Promise<Session> {
     const sessionId = this.generateSessionId();
     const now = new Date();
-    
+
     const session: Session = {
       id: sessionId,
       userId: request.userId,
@@ -53,34 +60,41 @@ class SupabaseSessionStore {
 
     try {
       // Insert session into database
-      const { error } = await supabase
-        .from('sessions')
-        .insert({
-          id: sessionId,
-          user_id: request.userId,
-          created_at: now.toISOString(),
-          last_accessed: now.toISOString(),
-          user_agent: request.userAgent,
-          ip_address: request.ipAddress,
-          metadata: request.metadata || {},
-          tokens_used: 0,
-          ml_request_count: 0,
-        });
+      const { error } = await supabase.from("sessions").insert({
+        id: sessionId,
+        user_id: request.userId,
+        created_at: now.toISOString(),
+        last_accessed: now.toISOString(),
+        user_agent: request.userAgent,
+        ip_address: request.ipAddress,
+        metadata: request.metadata || {},
+        tokens_used: 0,
+        ml_request_count: 0,
+      });
 
       if (error) {
-        console.warn('Supabase table might not exist yet, using in-memory fallback:', error.message);
+        console.warn(
+          "Supabase table might not exist yet, using in-memory fallback:",
+          error.message,
+        );
         // Fall back to in-memory storage if tables don't exist
         return this.createSessionInMemory(request, sessionId);
       }
     } catch (error) {
-      console.warn('Supabase connection failed, using in-memory fallback:', error);
+      console.warn(
+        "Supabase connection failed, using in-memory fallback:",
+        error,
+      );
       return this.createSessionInMemory(request, sessionId);
     }
-    
+
     return session;
   }
 
-  private createSessionInMemory(request: CreateSessionRequest, sessionId: string): Session {
+  private createSessionInMemory(
+    request: CreateSessionRequest,
+    sessionId: string,
+  ): Session {
     const now = new Date();
     const session: Session = {
       id: sessionId,
@@ -94,11 +108,11 @@ class SupabaseSessionStore {
       tokensUsed: 0,
       mlRequestCount: 0,
     };
-    
+
     // Store in memory as fallback
     this.inMemorySessions.set(sessionId, session);
     this.setInMemoryExpiry(sessionId);
-    
+
     return session;
   }
 
@@ -106,9 +120,9 @@ class SupabaseSessionStore {
     try {
       // Try to get session from database first
       const { data, error } = await supabase
-        .from('sessions')
-        .select('*')
-        .eq('id', sessionId)
+        .from("sessions")
+        .select("*")
+        .eq("id", sessionId)
         .single();
 
       if (error || !data) {
@@ -126,19 +140,19 @@ class SupabaseSessionStore {
       // Update last accessed time in database
       const now = new Date();
       await supabase
-        .from('sessions')
+        .from("sessions")
         .update({ last_accessed: now.toISOString() })
-        .eq('id', sessionId);
+        .eq("id", sessionId);
 
       // Get recent actions for this session
       const { data: actionsData } = await supabase
-        .from('user_actions')
-        .select('*')
-        .eq('session_id', sessionId)
-        .order('timestamp', { ascending: false })
+        .from("user_actions")
+        .select("*")
+        .eq("session_id", sessionId)
+        .order("timestamp", { ascending: false })
         .limit(100);
 
-      const actions: UserAction[] = (actionsData || []).map(action => ({
+      const actions: UserAction[] = (actionsData || []).map((action) => ({
         id: action.id,
         type: action.type,
         timestamp: new Date(action.timestamp),
@@ -162,7 +176,10 @@ class SupabaseSessionStore {
         mlRequestCount: data.ml_request_count || 0,
       };
     } catch (error) {
-      console.warn('Error getting session from Supabase, checking in-memory:', error);
+      console.warn(
+        "Error getting session from Supabase, checking in-memory:",
+        error,
+      );
       // Check in-memory storage as fallback
       const inMemorySession = this.inMemorySessions.get(sessionId);
       if (inMemorySession) {
@@ -174,68 +191,33 @@ class SupabaseSessionStore {
     }
   }
 
-  async updateSession(sessionId: string, request: UpdateSessionRequest): Promise<Session | undefined> {
+  async updateSession(
+    sessionId: string,
+    request: UpdateSessionRequest,
+  ): Promise<Session | undefined> {
     const session = await this.getSession(sessionId);
     if (!session) {
       return undefined;
     }
 
     const now = new Date();
-    
+    const { tokensUsed, mlRequestCount, metadata } = request;
     // Update last accessed time
     await supabase
-      .from('sessions')
-      .update({ last_accessed: now.toISOString() })
-      .eq('id', sessionId);
-
-    // Add action if provided
-    if (request.action) {
-      const actionId = this.generateActionId();
-      // Ensure timestamp is a Date object
-      const timestamp = request.action.timestamp instanceof Date 
-        ? request.action.timestamp 
-        : new Date(request.action.timestamp);
-      
-      const { error } = await supabase
-        .from('user_actions')
-        .insert({
-          id: actionId,
-          session_id: sessionId,
-          type: request.action.type,
-          timestamp: timestamp.toISOString(),
-          endpoint: request.action.endpoint,
-          data: request.action.data || {},
-          result: request.action.result || {},
-          tokens_used: request.action.tokensUsed || 0,
-          duration_ms: request.action.duration || 0,
-        });
-
-      if (error) {
-        console.error('Error adding action to Supabase:', error);
-      } else {
-        // Update the action with the proper timestamp for in-memory storage
-        const actionWithProperTimestamp = {
-          ...request.action,
-          timestamp: timestamp
-        };
-        session.actions.unshift(actionWithProperTimestamp);
-        // Keep only last 100 actions in memory
-        if (session.actions.length > 100) {
-          session.actions = session.actions.slice(0, 100);
-        }
-      }
-    }
+      .from("sessions")
+      .update({ last_accessed: now.toISOString(), tokensUsed, mlRequestCount })
+      .eq("id", sessionId);
 
     // Update metadata if provided
-    if (request.metadata) {
-      const updatedMetadata = { ...session.metadata, ...request.metadata };
+    if (metadata) {
+      const updatedMetadata = { ...session.metadata, ...metadata };
       const { error } = await supabase
-        .from('sessions')
+        .from("sessions")
         .update({ metadata: updatedMetadata })
-        .eq('id', sessionId);
+        .eq("id", sessionId);
 
       if (error) {
-        console.error('Error updating session metadata in Supabase:', error);
+        console.error("Error updating session metadata in Supabase:", error);
       } else {
         session.metadata = updatedMetadata;
       }
@@ -243,22 +225,54 @@ class SupabaseSessionStore {
 
     return session;
   }
+  async addUserAction(sessionId: string, request: UserAction): Promise<void> {
+    const session = await this.getSession(sessionId);
+    if (!session) {
+      console.error("Error addUserAction, no sessionId");
+      return undefined;
+    }
+
+    const now = new Date();
+
+    const actionId = this.generateActionId();
+    // Ensure timestamp is a Date object
+    const timestamp =
+      request.timestamp instanceof Date
+        ? request.timestamp
+        : new Date(request.timestamp);
+
+    const { error } = await supabase.from("user_actions").insert({
+      id: actionId,
+      session_id: sessionId,
+      type: request.type,
+      timestamp: timestamp.toISOString(),
+      endpoint: request.endpoint,
+      data: request.data || {},
+      result: request.result || {},
+      tokens_used: request.tokensUsed || 0,
+      duration_ms: request.duration || 0,
+    });
+
+    if (error) {
+      console.error("Error adding action to Supabase:", error);
+    }
+  }
 
   async deleteSession(sessionId: string): Promise<boolean> {
     const { error } = await supabase
-      .from('sessions')
+      .from("sessions")
       .delete()
-      .eq('id', sessionId);
+      .eq("id", sessionId);
 
     return !error;
   }
 
   async getUserSessions(userId: string): Promise<Session[]> {
     const { data, error } = await supabase
-      .from('sessions')
-      .select('*')
-      .eq('user_id', userId)
-      .order('last_accessed', { ascending: false });
+      .from("sessions")
+      .select("*")
+      .eq("user_id", userId)
+      .order("last_accessed", { ascending: false });
 
     if (error || !data) {
       return [];
@@ -268,9 +282,9 @@ class SupabaseSessionStore {
     const sessions = await Promise.all(
       data.map(async (sessionData) => {
         const { count } = await supabase
-          .from('user_actions')
-          .select('*', { count: 'exact', head: true })
-          .eq('session_id', sessionData.id);
+          .from("user_actions")
+          .select("*", { count: "exact", head: true })
+          .eq("session_id", sessionData.id);
 
         return {
           id: sessionData.id,
@@ -285,25 +299,28 @@ class SupabaseSessionStore {
           mlRequestCount: sessionData.ml_request_count || 0,
           actionCount: count || 0,
         };
-      })
+      }),
     );
 
     return sessions;
   }
 
-  async getSessionActions(sessionId: string, limit = 50): Promise<UserAction[]> {
+  async getSessionActions(
+    sessionId: string,
+    limit = 50,
+  ): Promise<UserAction[]> {
     const { data, error } = await supabase
-      .from('user_actions')
-      .select('*')
-      .eq('session_id', sessionId)
-      .order('timestamp', { ascending: false })
+      .from("user_actions")
+      .select("*")
+      .eq("session_id", sessionId)
+      .order("timestamp", { ascending: false })
       .limit(limit);
 
     if (error || !data) {
       return [];
     }
 
-    return data.map(action => ({
+    return data.map((action) => ({
       id: action.id,
       type: action.type,
       timestamp: new Date(action.timestamp),
@@ -318,14 +335,16 @@ class SupabaseSessionStore {
   async cleanup(): Promise<void> {
     // Expired sessions are automatically deleted by the database
     // This method is kept for compatibility
-    console.log('Supabase store cleanup: Expired sessions are automatically deleted by database');
+    console.log(
+      "Supabase store cleanup: Expired sessions are automatically deleted by database",
+    );
   }
 
   async getStats() {
     // Use the session_stats view
     const { data, error } = await supabase
-      .from('session_stats')
-      .select('*')
+      .from("session_stats")
+      .select("*")
       .single();
 
     if (error || !data) {
@@ -351,11 +370,11 @@ class SupabaseSessionStore {
   async incrementSessionMetrics(
     sessionId: string,
     tokensUsed: number = 0,
-    mlRequestCount: number = 0
+    mlRequestCount: number = 0,
   ): Promise<boolean> {
     try {
       // Use the increment_session_metrics function if it exists
-      const { error } = await supabase.rpc('increment_session_metrics', {
+      const { error } = await supabase.rpc("increment_session_metrics", {
         p_session_id: sessionId,
         p_tokens_used: tokensUsed,
         p_ml_request_count: mlRequestCount,
@@ -363,39 +382,43 @@ class SupabaseSessionStore {
 
       if (error) {
         // Fallback to direct update if function doesn't exist
-        console.warn('increment_session_metrics function not found, using direct update:', error.message);
-        
+        console.warn(
+          "increment_session_metrics function not found, using direct update:",
+          error.message,
+        );
+
         // First get current values
         const { data: currentData, error: fetchError } = await supabase
-          .from('sessions')
-          .select('tokens_used, ml_request_count')
-          .eq('id', sessionId)
+          .from("sessions")
+          .select("tokens_used, ml_request_count")
+          .eq("id", sessionId)
           .single();
 
         if (fetchError || !currentData) {
-          console.error('Error fetching current session metrics:', fetchError);
+          console.error("Error fetching current session metrics:", fetchError);
           return false;
         }
 
         // Then update with incremented values
         const { error: updateError } = await supabase
-          .from('sessions')
+          .from("sessions")
           .update({
             tokens_used: (currentData.tokens_used || 0) + tokensUsed,
-            ml_request_count: (currentData.ml_request_count || 0) + mlRequestCount,
+            ml_request_count:
+              (currentData.ml_request_count || 0) + mlRequestCount,
             last_accessed: new Date().toISOString(),
           })
-          .eq('id', sessionId);
+          .eq("id", sessionId);
 
         if (updateError) {
-          console.error('Error updating session metrics:', updateError);
+          console.error("Error updating session metrics:", updateError);
           return false;
         }
       }
 
       return true;
     } catch (error) {
-      console.error('Error incrementing session metrics:', error);
+      console.error("Error incrementing session metrics:", error);
       return false;
     }
   }
@@ -408,29 +431,32 @@ class SupabaseSessionStore {
   } | null> {
     try {
       // Try to use the get_session_metrics function if it exists
-      const { data, error } = await supabase.rpc('get_session_metrics', {
+      const { data, error } = await supabase.rpc("get_session_metrics", {
         p_session_id: sessionId,
       });
 
       if (error || !data || data.length === 0) {
         // Fallback to direct query if function doesn't exist
-        console.warn('get_session_metrics function not found, using direct query:', error?.message);
-        
+        console.warn(
+          "get_session_metrics function not found, using direct query:",
+          error?.message,
+        );
+
         const { data: sessionData, error: sessionError } = await supabase
-          .from('sessions')
-          .select('tokens_used, ml_request_count')
-          .eq('id', sessionId)
+          .from("sessions")
+          .select("tokens_used, ml_request_count")
+          .eq("id", sessionId)
           .single();
 
         if (sessionError || !sessionData) {
-          console.error('Error getting session metrics:', sessionError);
+          console.error("Error getting session metrics:", sessionError);
           return null;
         }
 
         const { count } = await supabase
-          .from('user_actions')
-          .select('*', { count: 'exact', head: true })
-          .eq('session_id', sessionId);
+          .from("user_actions")
+          .select("*", { count: "exact", head: true })
+          .eq("session_id", sessionId);
 
         return {
           tokensUsed: sessionData.tokens_used || 0,
@@ -445,7 +471,7 @@ class SupabaseSessionStore {
         actionCount: Number(data[0]?.action_count) || 0,
       };
     } catch (error) {
-      console.error('Error getting session metrics:', error);
+      console.error("Error getting session metrics:", error);
       return null;
     }
   }
@@ -461,13 +487,13 @@ class SupabaseSessionStore {
   private setInMemoryExpiry(sessionId: string): void {
     // Clear existing expiry
     this.clearInMemoryExpiry(sessionId);
-    
+
     // Set new expiry
     const timeout = setTimeout(() => {
       this.inMemorySessions.delete(sessionId);
       this.inMemorySessionExpiry.delete(sessionId);
     }, this.SESSION_TTL);
-    
+
     this.inMemorySessionExpiry.set(sessionId, timeout);
   }
 

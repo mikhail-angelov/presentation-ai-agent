@@ -32,7 +32,8 @@ export type CreateSessionRequest = {
 };
 
 export type UpdateSessionRequest = {
-  action?: UserAction;
+  tokensUsed: number,
+  mlRequestCount: number,
   metadata?: Record<string, any>;
 };
 

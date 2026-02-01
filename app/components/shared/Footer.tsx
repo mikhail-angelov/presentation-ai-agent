@@ -1,23 +1,20 @@
 "use client";
 
-import { BarChart3, Activity, Database, Github } from "lucide-react";
-import { RateLimit } from "@/app/types";
-import { SessionData } from "@/app/lib/flux/store";
+import { BarChart3, Database, Github } from "lucide-react";
+import { RATE_LIMIT, SessionData } from "@/app/lib/flux/store";
 
 interface FooterProps {
-  rateLimit: RateLimit;
   session?: SessionData | null;
 }
 
-export default function Footer({ rateLimit, session }: FooterProps) {
-  const progressPercentage = (rateLimit.used / rateLimit.limit) * 100;
+export default function Footer({ session }: FooterProps) {
   
   // Get token usage from session metrics
   const sessionTokensUsed = session?.tokensUsed || 0;
   const sessionMLRequests = session?.mlRequestCount || 0;
   
-  // Get token usage from rate limit (actual LLM request tokens)
-  const totalTokensUsed = rateLimit.tokensUsed || 0;
+  const progressPercentage = (sessionMLRequests / RATE_LIMIT) * 100;
+
   
   // Get last LLM request from store (not session actions)
   const lastLLMRequest = session?.actions?.find(action => 
@@ -35,7 +32,7 @@ export default function Footer({ rateLimit, session }: FooterProps) {
               <BarChart3 className="h-4 w-4 text-gray-500" />
               <div className="flex items-center gap-2">
                 <span className="text-sm font-medium text-gray-700">
-                  {rateLimit.used}/{rateLimit.limit}
+                  {sessionMLRequests}/{RATE_LIMIT}
                 </span>
                 <div className="w-16 bg-gray-200 rounded-full h-1.5">
                   <div
@@ -54,30 +51,15 @@ export default function Footer({ rateLimit, session }: FooterProps) {
               <div className="flex items-center gap-1">
                 <Database className="h-3 w-3 text-blue-500" />
                 <span className="text-xs text-gray-600">
-                  {rateLimit.used} LLM requests
+                  {sessionMLRequests} LLM requests
                 </span>
               </div>
-              <div className="flex items-center gap-1">
-                <Activity className="h-3 w-3 text-green-500" />
-                <span className="text-xs text-gray-600">
-                  {totalTokensUsed.toLocaleString()} tokens
-                </span>
-              </div>
-              {/* Session metrics */}
               <div className="flex items-center gap-1">
                 <div className="h-3 w-3 flex items-center justify-center">
                   <div className="h-2 w-2 rounded-full bg-purple-500"></div>
                 </div>
                 <span className="text-xs text-gray-600">
                   {sessionTokensUsed.toLocaleString()} session tokens
-                </span>
-              </div>
-              <div className="flex items-center gap-1">
-                <div className="h-3 w-3 flex items-center justify-center">
-                  <div className="h-2 w-2 rounded-full bg-orange-500"></div>
-                </div>
-                <span className="text-xs text-gray-600">
-                  {sessionMLRequests} ML requests
                 </span>
               </div>
             </div>

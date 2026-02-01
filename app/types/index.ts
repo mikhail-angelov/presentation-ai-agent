@@ -13,8 +13,3 @@ export type UserGuide = {
   icon: React.ReactNode;
 };
 
-export type RateLimit = {
-  used: number;
-  limit: number;
-  tokensUsed?: number;
-};

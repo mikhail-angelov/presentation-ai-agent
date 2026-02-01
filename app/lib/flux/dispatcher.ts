@@ -16,10 +16,6 @@ export const dispatcher = {
     store.dispatch(actionCreators.addLLMRequest(request));
   },
 
-  setRateLimit: (rateLimit: Parameters<typeof actionCreators.setRateLimit>[0]) => {
-    store.dispatch(actionCreators.setRateLimit(rateLimit));
-  },
-
   setIsGenerating: (isGenerating: Parameters<typeof actionCreators.setIsGenerating>[0]) => {
     store.dispatch(actionCreators.setIsGenerating(isGenerating));
   },
@@ -72,30 +68,6 @@ export const dispatcherHelpers = {
     if (step === "htmlSlides" && typeof content === "string") {
       dispatcher.setGeneratedSlidesHTML(content);
     }
-  },
-
-  // Add LLM request and update rate limit based on actual LLM requests
-  addLLMRequestWithRateLimit: (request: Parameters<typeof actionCreators.addLLMRequest>[0], sessionActionsLength?: number) => {
-    dispatcher.addLLMRequest(request);
-    
-    // Update rate limit based on actual LLM requests count
-    const currentState = store.getState();
-    
-    // Count only successful LLM requests (not errors)
-    const successfulLLMRequests = currentState.llmRequests.filter(req => req.status === "success").length;
-    // Add 1 for the new request if it's successful
-    const newRequestCount = request.status === "success" ? successfulLLMRequests + 1 : successfulLLMRequests;
-    
-    // Calculate total tokens used
-    const totalTokensUsed = [...currentState.llmRequests, request]
-      .filter(req => req.status === "success")
-      .reduce((sum, req) => sum + (req.tokensUsed || 0), 0);
-    
-    dispatcher.setRateLimit({
-      ...currentState.rateLimit,
-      used: Math.min(newRequestCount, currentState.rateLimit.limit),
-      tokensUsed: totalTokensUsed,
-    });
   },
 
   // Cancel generation

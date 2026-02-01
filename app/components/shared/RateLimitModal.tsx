@@ -1,19 +1,19 @@
 "use client";
 
 import { useTranslation } from "@/app/hooks/useTranslation";
-import { RateLimit } from "@/app/types";
+import { RATE_LIMIT, SessionData } from "@/app/lib/flux/store";
 
 interface RateLimitModalProps {
   isOpen: boolean;
   onClose: () => void;
-  rateLimit: RateLimit;
+  session?: SessionData | null;
   onFeedbackClick: () => void;
 }
 
 export default function RateLimitModal({
   isOpen,
   onClose,
-  rateLimit,
+  session,
   onFeedbackClick,
 }: RateLimitModalProps) {
   const { t } = useTranslation();
@@ -96,7 +96,7 @@ export default function RateLimitModal({
               {t("rateLimitModal.limitsDescription") ||
                 "Each AI request requires token budget and is limited for free usage. You've used "}
               <span className="font-semibold text-purple-600">
-                {rateLimit.used}/{rateLimit.limit}
+                {session?.mlRequestCount||0}/{RATE_LIMIT}
               </span>
               {t("rateLimitModal.limitsSuffix") || " requests."}
             </p>

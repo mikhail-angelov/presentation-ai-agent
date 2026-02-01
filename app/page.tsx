@@ -17,7 +17,7 @@ import { useToast } from "./contexts/ToastContext";
 import SlidesPreviewModal from "./components/shared/SlidesPreviewModal";
 import RateLimitModal from "./components/shared/RateLimitModal";
 import FeedbackModal from "./components/shared/FeedbackModal";
-import { useStore } from "./lib/flux/store";
+import { RATE_LIMIT, useStore } from "./lib/flux/store";
 import { dispatcher, dispatcherHelpers } from "./lib/flux/dispatcher";
 
 export default function Home() {
@@ -29,18 +29,20 @@ export default function Home() {
     activeStep,
     stepHistory,
     stepContents,
-    rateLimit,
     isGenerating,
     streamingContent,
     showSlidesModal,
     generatedSlidesHTML,
     imageGenerationProgress,
-    presentationActions,
     presentationOptions,
     session,
     sessionLoading,
     sessionError,
     trackAction,
+    generateOutline,
+    generateSpeech,
+    generateSlides,
+    generateHtmlSlides,
   } = useStore();
 
   // Modal states
@@ -48,7 +50,7 @@ export default function Home() {
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
 
   // Check if user has exceeded rate limit
-  const hasExceededRateLimit = rateLimit.used >= rateLimit.limit;
+  const hasExceededRateLimit = session?.mlRequestCount||0 >= RATE_LIMIT;
 
   // Helper function to check rate limit before performing actions
   const checkRateLimit = (actionName: string) => {
@@ -56,8 +58,8 @@ export default function Home() {
       setShowRateLimitModal(true);
       trackAction("rate_limit_exceeded", {
         action: actionName,
-        used: rateLimit.used,
-        limit: rateLimit.limit,
+        used: session?.mlRequestCount||0,
+        limit: RATE_LIMIT,
       });
       return false;
     }
@@ -182,7 +184,7 @@ export default function Home() {
     if (!checkRateLimit("generate_outline")) return;
     
     try {
-      await presentationActions.generateOutline(
+      await generateOutline(
         stepContents.setup,
         presentationOptions
       );
@@ -196,7 +198,7 @@ export default function Home() {
     if (!checkRateLimit("generate_speech")) return;
     
     try {
-      await presentationActions.generateSpeech(
+      await generateSpeech(
         stepContents.setup,
         stepContents.outline,
         presentationOptions
@@ -211,7 +213,7 @@ export default function Home() {
     if (!checkRateLimit("generate_slides")) return;
     
     try {
-      await presentationActions.generateSlides(
+      await generateSlides(
         stepContents.setup,
         stepContents.speech,
         presentationOptions
@@ -225,7 +227,7 @@ export default function Home() {
     if (!checkRateLimit("generate_html_slides")) return;
     
     try {
-      await presentationActions.generateHtmlSlides(
+      await generateHtmlSlides(
         stepContents.setup,
         stepContents.slides,
         presentationOptions
@@ -424,7 +426,7 @@ export default function Home() {
       {/* Footer - Always visible at bottom */}
       <div className="bg-white border-t border-gray-200">
         <div className="max-w-7xl mx-auto">
-          <Footer rateLimit={rateLimit} session={session} />
+          <Footer session={session} />
         </div>
       </div>
 
@@ -439,8 +441,8 @@ export default function Home() {
       {/* Rate Limit Modal */}
       <RateLimitModal
         isOpen={showRateLimitModal}
+        session={session}
         onClose={() => setShowRateLimitModal(false)}
-        rateLimit={rateLimit}
         onFeedbackClick={() => {
           setShowRateLimitModal(false);
           setShowFeedbackModal(true);

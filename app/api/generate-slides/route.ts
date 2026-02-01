@@ -182,24 +182,18 @@ export async function POST(request: NextRequest) {
           if (sessionId) {
             // Get current session to calculate total tokens
             const currentSession = await sessionStore.getSession(sessionId);
-            const currentTotalTokens =
-              currentSession?.metadata?.totalTokensUsed || 0;
+            const currentTokensUsed =
+              currentSession?.tokensUsed || 0;
+            const currentMlRequestCount =
+              currentSession?.mlRequestCount || 0;
 
             sessionStore.updateSession(sessionId, {
-              action: {
-                id: actionId,
-                type: "generate_slides_html_stream",
-                timestamp: new Date(),
-                endpoint: "/api/generate-slides",
-                data: { topic, audience, duration },
-                result: { success: true, contentLength: finalHtml.length },
-                tokensUsed,
-                duration: actionDuration,
-              },
+              tokensUsed: currentTokensUsed + tokensUsed,
+              mlRequestCount:currentMlRequestCount+1,
               metadata: {
                 lastPresentationTopic: topic,
                 lastGeneratedAt: new Date().toISOString(),
-                totalTokensUsed: currentTotalTokens + tokensUsed,
+                totalTokensUsed: currentTokensUsed + tokensUsed,
               },
             });
           }
@@ -257,8 +251,7 @@ export async function POST(request: NextRequest) {
           if (sessionId) {
             const errorMessage =
               error instanceof Error ? error.message : "Unknown error";
-            sessionStore.updateSession(sessionId, {
-              action: {
+            sessionStore.addUserAction(sessionId, {
                 id: generateUUID(),
                 type: "generate_slides_html_stream_error",
                 timestamp: new Date(),
@@ -266,7 +259,6 @@ export async function POST(request: NextRequest) {
                 data: {},
                 result: { error: errorMessage },
                 duration: 0,
-              },
             });
           }
 
