@@ -6,6 +6,8 @@ A modern, AI-powered presentation preparation tool built with Next.js 14, TypeSc
 
 The application is live and deployed via Vercel at: [https://presentation.bconf.com/](https://presentation.bconf.com/)
 
+<img width="1042" height="916" alt="image" src="https://github.com/user-attachments/assets/320ecb14-6b9b-4dc7-8fb4-794256758243" />
+
 ## Overview
 
 Prez AI Presenter is a web application that helps users create compelling presentations through a guided, step-by-step process. The application provides:
